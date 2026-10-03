@@ -11,3 +11,6 @@ screens/
 .secret
 *.tar.gz
 node_modules/
+# local Cloudflare test files
+.dev.vars
+.wrangler/

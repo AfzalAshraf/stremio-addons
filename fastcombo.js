@@ -1401,18 +1401,18 @@ function randomText(n, group) {
 }
 // Shown while no access key / password is set (only possible on Cloudflare: Node creates them). Reveals nothing.
 function setupPage() {
-  const code = (t) => `<code style="background:#0b0f1e;border:1px solid var(--line);border-radius:6px;padding:2px 6px;word-break:break-all">${t}</code>`;
-  const row = (n, v, t) => `<tr><td style="padding:6px 8px 6px 0">${code(n)}</td><td style="padding:6px 8px">${code(v)}</td><td style="padding:6px 0;color:var(--mut)">${t}</td></tr>`;
-  const card = "background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 18px;margin-top:16px";
-  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>⚡ Fast Combo · setup</title><style>${PAGE_CSS}</style></head>
+  const box = "background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin-top:14px";
+  const code = (t) => `<code style="background:#0b0f1e;border:1px solid var(--line);border-radius:6px;padding:3px 7px;word-break:break-all;font-size:15px">${t}</code>`;
+  const btn = (t) => `<button data-copy="${t}" style="margin-left:6px;background:var(--pri);color:#fff;border:0;border-radius:8px;padding:5px 10px;font:inherit;font-size:13px;cursor:pointer">Copy</button>`;
+  const item = (name, value, type) => `<div style="${box}"><div style="color:var(--mut);font-size:13px">Variable name</div><div style="margin:3px 0 9px">${code(name)}${btn(name)}</div><div style="color:var(--mut);font-size:13px">Value (made just now, or type your own)</div><div style="margin:3px 0 9px">${code(value)}${btn(value)}</div><div style="color:var(--mut);font-size:13px">Type: <b style="color:var(--txt)">${type}</b></div></div>`;
+  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>⚡ Fast Combo · setup</title><style>${PAGE_CSS} li{margin:6px 0}</style></head>
 <body><div class="w"><div class="hd"><img src="/logo.png" alt=""><div><h1>⚡ Fast Combo: one step left</h1><p class="sub">This copy has no access key and password yet, so it's locked.</p></div></div>
-<div style="${card}"><b>On Cloudflare Workers</b><ol style="padding-left:20px;margin:8px 0 0">
-<li>Open your Worker → <b>Settings</b> → <b>Variables and Secrets</b> → <b>Add</b> these (random values made just now; use them or your own):
-<table style="border-collapse:collapse;margin:8px 0">${row("FC_ACCESS_KEY", randomText(12), "Text")}${row("FC_ADMIN_PASSWORD", randomText(12, 4), "Secret")}${row("FC_SECRET", randomText(32), "Secret, optional")}</table></li>
-<li>Press <b>Deploy</b>, then open ${code("/YOUR-ACCESS-KEY/configure")} on this address and log in with the password.</li>
-<li>Recommended: <b>Storage &amp; Databases → KV</b> → create a namespace and bind it to this Worker as ${code("FC_KV")}, so changes apply without reinstalling.</li></ol></div>
-<div style="${card}"><b>On Node.js, Docker or a VPS</b><p class="sub" style="margin-top:6px">You won't see this page there: the key and password are created on the first start (shown in the start-up log and saved in ${code("data/secrets.json")}, or in ${code("/etc/fastcombo/fastcombo.env")} with the VPS installer).</p></div>
-</div></body></html>`;
+<div style="${box}"><b>1.</b> In Cloudflare open this Worker → <b>Settings</b> → <b>Variables and Secrets</b> → <b>+ Add</b>, and add these two (copy each box):</div>
+${item("FC_ACCESS_KEY", randomText(12), "Secret")}${item("FC_ADMIN_PASSWORD", randomText(12, 4), "Secret")}
+<div style="${box}"><b>2.</b> Press <b>Deploy</b>. <b>Save the password</b> somewhere safe.<br><b>3.</b> Open ${code("/YOUR-ACCESS-KEY/configure")} on this address (example: <span style="word-break:break-all">this-address/<b>abc123…</b>/configure</span>) and log in with the password.</div>
+<div style="${box}"><b>Optional: live sync</b> (changes reach Stremio without reinstalling)<ol style="padding-left:20px;margin:6px 0 0"><li><b>Storage &amp; Databases</b> → <b>KV</b> → <b>Create</b>, name ${code("fastcombo")}. Cloudflare then shows example code: <b>ignore it, no code is needed.</b></li><li>This Worker → <b>Settings</b> → <b>Bindings</b> → <b>+ Add</b> → <b>KV namespace</b>. Variable name ${code("FC_KV")}${btn("FC_KV")} (any name works), pick ${code("fastcombo")} → <b>Add</b>.</li></ol></div>
+<p class="sub" style="margin-top:14px">On Node.js, Docker or a VPS you won't see this page: the key and password are created on the first start.</p>
+</div><script>document.addEventListener("click",function(e){var b=e.target.closest("[data-copy]");if(!b)return;var t=b.getAttribute("data-copy"),done=function(){b.textContent="Copied ✓";setTimeout(function(){b.textContent="Copy"},1500)};if(navigator.clipboard&&window.isSecureContext)navigator.clipboard.writeText(t).then(done,function(){prompt("Copy this:",t)});else prompt("Copy this:",t)});</script></body></html>`;
 }
 function landingPage() {
   return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>⚡ Fast Combo</title><style>${PAGE_CSS}</style></head>
@@ -2296,7 +2296,7 @@ function renderInstall() {
   var m = $('#modeCard');
   if (S.storage) m.innerHTML = '<h2>Live sync <span class="pill g"><span class="dot"></span>On</span></h2><p class="lead" style="margin:6px 0 0">Install once. Everything you save here (new addons, switched-off addons, settings) reaches Stremio by itself within about a minute. No reinstalling.</p>';
   else m.innerHTML = '<h2>Link mode <span class="pill y">no storage connected</span></h2><p class="lead" style="margin:6px 0 10px">Your addon list is stored inside the install link (encrypted, only your server can read it). After you save changes, <b>remove the old Fast Combo in Stremio and install the new link</b>.</p>' +
-    (B.onCF ? '<details open><summary>Turn on live sync (free, about 2 minutes) so you never need to reinstall</summary><ol class="steps"><li>Cloudflare dashboard → <b>Storage &amp; Databases</b> → <b>KV</b> → <b>Create</b> a namespace called <code>fastcombo</code>.</li><li><b>Workers &amp; Pages</b> → your worker → <b>Settings</b> → <b>Bindings</b> → <b>Add</b> → <b>KV namespace</b>. Variable name <code>FC_KV</code>, namespace <code>fastcombo</code> → <b>Deploy</b>.</li><li>Reload this page and press <b>Save changes</b> once. Then install the plain link one last time.</li></ol></details>'
+    (B.onCF ? '<details open><summary>Turn on live sync (free, about 2 minutes) so you never need to reinstall</summary><ol class="steps"><li>Cloudflare dashboard → <b>Storage &amp; Databases</b> → <b>KV</b> → <b>Create</b> a namespace called <code>fastcombo</code>.</li><li>Cloudflare then shows example code (env.KV.put …). <b>Ignore it: no code is needed.</b></li><li><b>Workers &amp; Pages</b> → your worker → <b>Settings</b> → <b>Bindings</b> → <b>Add</b> → <b>KV namespace</b>. Variable name <code>FC_KV</code> (any name works), namespace <code>fastcombo</code> → <b>Deploy</b>.</li><li>Reload this page and press <b>Save changes</b> once. Then install the plain link one last time.</li></ol></details>'
       : '<p class="hint">Tip: with server.js, live sync is on automatically (saved in data/kv.json).</p>');
 }
 $('#instCopy').addEventListener('click', function () { copy(installUrl(), 'Install link copied'); });
@@ -2372,8 +2372,22 @@ async function route(request, env, ctx) {
   return json({ err: "not found" }, 404);
 }
 
+// Live-sync storage = a Cloudflare KV namespace. Recommended binding name FC_KV, but any name works
+// (e.g. "KV" like Cloudflare's example code): the first KV namespace found is used.
+const isKV = (v) => !!v && typeof v === "object" && typeof v.get === "function" && typeof v.put === "function" && typeof v.getWithMetadata === "function";
+function withKV(env) {
+  if (!env || typeof env !== "object" || env.FC_KV) return env;
+  let kv = isKV(env.KV) ? env.KV : null;
+  if (!kv) for (const k of Object.keys(env)) if (isKV(env[k])) { kv = env[k]; break; }
+  if (!kv) return env;
+  const e = Object.create(env); // keeps every other binding / variable as it is
+  e.FC_KV = kv;
+  return e;
+}
+
 export default {
   async fetch(request, env, ctx) {
+    env = withKV(env);
     applyEnv(env);
     if (!STARTED) STARTED = Date.now(); // (Cloudflare freezes the clock outside requests)
     try {

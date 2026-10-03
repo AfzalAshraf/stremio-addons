@@ -1,0 +1,11 @@
+// Cloudflare settings, used by the "Deploy to Cloudflare" button (and "npx wrangler deploy").
+// Node.js, Docker and VPS users can ignore this file.
+{
+  "name": "fast-combo",
+  "main": "fastcombo.js",
+  "compatibility_date": "2026-10-01",
+  // keep variables you add in the Cloudflare dashboard when the Worker is redeployed
+  "keep_vars": true,
+  // Storage for live sync. No id needed: Cloudflare creates it on the first deploy and keeps it linked.
+  "kv_namespaces": [{ "binding": "FC_KV" }]
+}

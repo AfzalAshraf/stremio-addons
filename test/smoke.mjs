@@ -84,6 +84,7 @@ const online = await fetch(`https://v3-cinemeta.strem.io/meta/movie/${ID}.json`,
   const app = await load();
   const r = await call(app, {}, "/");
   check("no access key / password → locked setup page", r.status === 503 && r.text.includes("FC_ACCESS_KEY") && r.text.includes("FC_ADMIN_PASSWORD"));
+  check("…with copy buttons", (r.text.match(/data-copy=/g) || []).length >= 4);
   check("…addon routes are locked too", (await call(app, {}, "/anything/manifest.json")).status === 503);
 }
 
@@ -148,6 +149,19 @@ check("setting \"1080p only\" removes the 4K file", only1080.length > 0 && !only
   check("…the link doesn't reveal the addon address", token && !token.includes("127.0.0.1") && !Buffer.from(token.slice(2), "base64").toString("latin1").includes("127.0.0.1"));
   r = await call(app3, env3, `/${KEY}/${token}/stream/movie/${ID}.json`);
   check("…and streams work through that link", r.status === 200 && keysOf(r.data.streams).includes("b-2160"));
+}
+
+// ------------------------------------------------------------ 8. live-sync storage works under any binding name
+{
+  const cfKV = () => Object.assign(memKV(), { async getWithMetadata(k) { return { value: await this.get(k), metadata: null }; }, async list() { return { keys: [] }; } });
+  for (const name of ["KV", "MY_STORAGE"]) {
+    const app4 = await load();
+    const env4 = { FC_ACCESS_KEY: KEY, FC_ADMIN_PASSWORD: PW, FC_SECRET: "z".repeat(32), [name]: cfKV() };
+    r = await call(app4, env4, `/${KEY}/api/profile`, { method: "POST", pw: PW, body: { addons: [{ name: "Fake B", url: `${base}/b` }], settings: {} } });
+    const live = r.data && r.data.mode === "live";
+    r = await call(app4, env4, `/${KEY}/stream/movie/${ID}.json`);
+    check(`storage named "${name}" also gives live sync`, live && r.status === 200 && keysOf(r.data.streams).includes("b-2160"));
+  }
 }
 
 await Promise.allSettled(pending);

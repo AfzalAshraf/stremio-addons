@@ -1,0 +1,5 @@
+# The "Deploy to Cloudflare" button asks for these two. Type your OWN values (no spaces):
+# FC_ACCESS_KEY = secret part of your addon link, e.g. 12 random letters and numbers
+# FC_ADMIN_PASSWORD = password for the control panel website
+FC_ACCESS_KEY=
+FC_ADMIN_PASSWORD=

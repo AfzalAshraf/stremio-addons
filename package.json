@@ -1,10 +1,28 @@
 {
   "name": "fast-combo-stremio",
   "version": "1.0.0",
-  "description": "One Stremio addon that merges your addons and keeps only working, fast 1080p/4K streams",
+  "description": "One Stremio addon that merges all your addons and keeps only working, fast 1080p/4K streams",
   "type": "module",
   "main": "server.js",
-  "scripts": { "start": "node server.js" },
-  "engines": { "node": ">=18" },
-  "license": "MIT"
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "MIT",
+  "cloudflare": {
+    "label": "Fast Combo (Stremio addon)",
+    "bindings": {
+      "FC_ACCESS_KEY": {
+        "description": "The **secret part of your addon link**, so strangers can't use it. Type about 12 random letters and numbers (no spaces, just mash the keyboard) and **write it down**."
+      },
+      "FC_ADMIN_PASSWORD": {
+        "description": "The **password for your control panel**, where you add your addons. Choose one and **write it down**."
+      },
+      "FC_KV": {
+        "description": "Storage for **live sync**: changes you make on the control panel reach Stremio without reinstalling. Created for you; just keep it."
+      }
+    }
+  }
 }

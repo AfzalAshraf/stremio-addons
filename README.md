@@ -29,7 +29,7 @@ Add as many Stremio addons as you like. Fast Combo asks them all at once and sho
 | Where | Cost | How long | Best for |
 |---|---|---|---|
 | [🏠 Your own VPS](#-your-own-vps-one-command) | your VPS | 5 min | Always on, no limits, up to 50 addons |
-| [☁️ Cloudflare Workers](#️-cloudflare-workers-free-no-server) | free | 10 min | No server at all |
+| [☁️ Cloudflare Workers](#️-cloudflare-workers-free-no-server) | free | 3 min (one-click button) | No server at all |
 | [🐳 Docker](#-docker) / [💻 Node.js](#-nodejs-on-any-computer) | free | 2 min | Your own computer or NAS |
 
 Every install creates **its own private access key and password**. Nothing secret is stored in this repository.
@@ -65,18 +65,88 @@ Update later (keeps your addons and settings): `sudo bash /opt/fastcombo/install
 
 ### ☁️ Cloudflare Workers (free, no server)
 
-1. Go to **https://dash.cloudflare.com** and log in (free account).
-2. **Workers & Pages** → **Create** → **Start with Hello World** → name it (e.g. `fast-combo`) → **Deploy**.
-3. **Edit code** → delete everything → paste the whole **[`fastcombo.js`](fastcombo.js)** → **Deploy**.
-4. Open your worker's address. It shows **"one step left"** with random values you can use.
-5. Worker → **Settings** → **Variables and Secrets** → **Add**:
-   - `FC_ACCESS_KEY` (type *Text*): the secret part of your links, e.g. 12 random letters
-   - `FC_ADMIN_PASSWORD` (type *Secret*): your control panel password
-   - optional `FC_SECRET` (type *Secret*): 32 random letters, used to encrypt addon lists inside links
+> **You never write code.** When you create KV storage, Cloudflare shows example code (`env.KV.put(...)`, `env.KV.get(...)`, `list`, `delete`). **Ignore it.** It's for programmers, and Fast Combo already does all of that by itself.
 
-   Then press **Deploy**.
-6. Recommended, **live sync:** **Storage & Databases** → **KV** → **Create** a namespace (e.g. `fastcombo`). Then Worker → **Settings** → **Bindings** → **Add** → **KV namespace**, variable name **`FC_KV`** → **Deploy**.
-7. Open `https://YOUR-WORKER.workers.dev/YOUR-ACCESS-KEY/configure` and log in.
+#### Option A: one click (easiest, about 3 minutes)
+
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/AfzalAshraf/stremio-addons)
+
+1. Click the button above. Log in to Cloudflare (or sign up, it's free) and connect GitHub when asked.
+2. Everything on the page that opens is already filled in (the storage too), **except 2 boxes**:
+
+   | Box | Type this |
+   |---|---|
+   | `FC_ACCESS_KEY` | about 12 random letters and numbers, no spaces (the secret part of your addon link) |
+   | `FC_ADMIN_PASSWORD` | a password for your control panel |
+
+   ✍️ **Write both down.**
+3. Click **Create and deploy** and wait about a minute.
+4. Open your control panel. Put in your own Worker address (shown when it's done) and your own key:
+   ```
+   https://fast-combo.YOUR-NAME.workers.dev/YOUR-ACCESS-KEY/configure
+   ```
+5. Log in with your password, then go to [After installing](#-after-installing-add-your-addons). Live sync is already on.
+
+> The button also makes a copy of this project in your GitHub. That's normal: Cloudflare builds your Worker from that copy.
+
+#### Option B: by hand (about 10 minutes, copy and paste only)
+
+Every grey box below has a **copy button** in its top-right corner (on GitHub). Paste exactly what's in it.
+
+**Step 1: create the Worker**
+
+Go to **https://dash.cloudflare.com** → **Workers & Pages** (in the left menu, sometimes under **Compute**) → **Create** → **Start with Hello World**. Name it:
+```
+fast-combo
+```
+Click **Deploy**.
+
+**Step 2: put Fast Combo in it**
+
+1. Click **Edit code**. Select everything in the editor (`Ctrl+A`, or `⌘+A` on a Mac) and delete it.
+2. Open **[fastcombo.js](https://raw.githubusercontent.com/AfzalAshraf/stremio-addons/main/fastcombo.js)**, select all, copy, and paste it into the editor.
+3. Click **Deploy**.
+4. Open your Worker's address (`https://fast-combo.YOUR-NAME.workers.dev`). It shows **"one step left"** with ready-made random values and **Copy** buttons. Keep it open for step 3.
+
+**Step 3: add your key and password**
+
+Your Worker → **Settings** → **Variables and Secrets** → **+ Add**. Add these 2, choosing type **Secret** each time.
+
+Variable name:
+```
+FC_ACCESS_KEY
+```
+Value: about 12 random letters and numbers, no spaces (or the one from the "one step left" page).
+
+Variable name:
+```
+FC_ADMIN_PASSWORD
+```
+Value: a password you choose for the control panel.
+
+Click **Deploy**. ✍️ **Write both values down.**
+
+**Step 4: turn on live sync** (recommended: changes reach Stremio without reinstalling)
+
+1. **Storage & Databases** → **KV** → **Create**. Name it:
+   ```
+   fastcombo
+   ```
+   Click **Create**. Cloudflare now shows example code. **Ignore it.**
+2. **Workers & Pages** → **fast-combo** → **Settings** → **Bindings** → **+ Add** → **KV namespace**.
+   - Variable name:
+     ```
+     FC_KV
+     ```
+   - KV namespace: choose **fastcombo**
+
+   Click **Add binding** (or **Deploy**). Already used another variable name, such as `KV`? That works too.
+
+**Step 5: open your control panel**
+```
+https://fast-combo.YOUR-NAME.workers.dev/YOUR-ACCESS-KEY/configure
+```
+Log in with your password, then go to [After installing](#-after-installing-add-your-addons).
 
 The free plan allows 100,000 requests a day. Its limits mean up to **15 addons** per Worker.
 
@@ -207,6 +277,8 @@ Everything is optional. Set these as environment variables: in `/etc/fastcombo/f
 | Saved, but Stremio shows the old list | **Live sync:** wait up to a minute and reopen the title. **Link mode:** reinstall from the 📲 Install tab. |
 | Catalogs of a newly added addon don't appear | Stremio reads catalogs only when installing. Reinstall Fast Combo once. (Streams from new addons work without reinstalling.) |
 | Forgot the password / key | VPS: `sudo cat /etc/fastcombo/fastcombo.env` · Node/Docker: `data/secrets.json` (Docker: `docker exec fastcombo cat /app/data/secrets.json`) · Cloudflare: set new values in the Worker's variables. |
+| Cloudflare page says **"one step left"** | Your key and password aren't set yet. Do [Option B, step 3](#️-cloudflare-workers-free-no-server), or redeploy with the button and fill in both boxes. |
+| Cloudflare: the 📲 Install tab says **"Turn on live sync"** | Add the KV storage: [Option B, step 4](#️-cloudflare-workers-free-no-server). Any variable name works. Then press **Save changes** once and install one last time. |
 | "Wrong password" although it's right | The browser may have saved an old one. Retype it. |
 | "Error 1102" on Cloudflare (rare) | The free plan allows 10 ms of processing per request. Reopen the title; if it happens often, turn off **Test links** or use a VPS. |
 | Some 4K files show purple/green | Turn on **Hide Dolby-Vision-only**. |
@@ -221,6 +293,7 @@ Everything is optional. Set these as environment variables: in `/etc/fastcombo/f
 | `install.sh` | One-command VPS installer (Ubuntu/Debian): HTTPS, service, DuckDNS, firewall |
 | `VPS-SETUP.md` | Step-by-step VPS guide |
 | `Dockerfile`, `package.json` | Docker / Node packaging |
+| `wrangler.jsonc`, `.dev.vars.example` | Cloudflare settings for the one-click button (Node, Docker and VPS users can ignore them) |
 | `ui/app.html` | Source of the control panel. After editing, run `python3 tools/embed_ui.py` to copy it into `fastcombo.js` |
 | `test/smoke.mjs` | End-to-end test with fake addons: `node test/smoke.mjs` |
 
