@@ -1,0 +1,693 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<meta name="theme-color" content="#0a0e1c">
+<title>Fast Combo · Control panel</title>
+<link rel="icon" href="/logo.png">
+<style>
+:root{--bg:#0a0e1c;--line:#253058;--line2:#313d6e;--txt:#e8ecfa;--mut:#97a3c8;--dim:#6f7aa3;--pri:#7c6cff;--pri2:#3d8bfd;--r:16px}
+*{box-sizing:border-box}
+html{background:var(--bg);-webkit-text-size-adjust:100%}
+body{margin:0;min-height:100vh;color:var(--txt);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,Ubuntu,sans-serif;background:radial-gradient(1000px 520px at -5% -10%,rgba(124,108,255,.26),transparent 60%),radial-gradient(800px 480px at 105% -5%,rgba(61,139,253,.2),transparent 60%),var(--bg);background-repeat:no-repeat;background-attachment:fixed}
+a{color:#a8b8ff}
+button,input,select{font:inherit;color:inherit}
+.hidden{display:none!important}
+.wrap{max-width:1000px;margin:0 auto;padding:18px 16px 120px}
+.top{display:flex;align-items:center;gap:14px;margin:4px 0 18px}
+.top .logo{width:54px;height:54px;border-radius:15px;box-shadow:0 8px 28px rgba(124,108,255,.35);flex:none}
+.top h1{margin:0;font-size:22px;letter-spacing:-.01em;display:flex;align-items:center;gap:8px}
+.top p{margin:2px 0 0;color:var(--mut);font-size:13.5px}
+.top .right{margin-left:auto}
+.ver{font-size:11px;font-weight:700;color:#cfc8ff;background:rgba(124,108,255,.16);border:1px solid rgba(124,108,255,.35);padding:1px 7px;border-radius:99px;vertical-align:middle}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:99px;font-size:12px;font-weight:700;white-space:nowrap;border:1px solid transparent}
+.pill.g{background:rgba(47,210,122,.12);color:#5ff0a3;border-color:rgba(47,210,122,.3)}
+.pill.y{background:rgba(255,201,77,.12);color:#ffd36e;border-color:rgba(255,201,77,.3)}
+.pill.r{background:rgba(255,92,122,.12);color:#ff8aa1;border-color:rgba(255,92,122,.32)}
+.pill.b{background:rgba(124,108,255,.14);color:#c9c1ff;border-color:rgba(124,108,255,.32)}
+.pill.n{background:rgba(149,161,198,.1);color:#aab4d6;border-color:rgba(149,161,198,.25)}
+.dot{width:7px;height:7px;border-radius:50%;background:currentColor;flex:none}
+.pill.g .dot{animation:pulse 2s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(95,240,163,.55)}70%{box-shadow:0 0 0 7px rgba(95,240,163,0)}100%{box-shadow:0 0 0 0 rgba(95,240,163,0)}}
+.tabs{display:flex;gap:4px;padding:5px;background:rgba(13,18,38,.88);border:1px solid var(--line);border-radius:14px;position:sticky;top:10px;z-index:20;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);overflow-x:auto;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tabs button{flex:1 0 auto;display:inline-flex;align-items:center;justify-content:center;gap:7px;border:0;background:none;color:var(--mut);padding:9px 14px;border-radius:10px;font-weight:650;font-size:14px;cursor:pointer;white-space:nowrap;transition:background .15s,color .15s}
+.tabs button:hover{color:var(--txt);background:rgba(255,255,255,.04)}
+.tabs button.on{color:#fff;background:linear-gradient(135deg,var(--pri),var(--pri2));box-shadow:0 4px 16px rgba(92,110,255,.35)}
+.card{background:linear-gradient(180deg,rgba(22,29,61,.92),rgba(17,23,49,.92));border:1px solid var(--line);border-radius:var(--r);padding:18px;margin:16px 0;box-shadow:0 10px 30px rgba(0,0,0,.18)}
+.card h2{margin:0 0 4px;font-size:16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.lead{margin:0 0 14px;color:var(--mut);font-size:13.5px}
+.card-h{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;flex-wrap:wrap}
+.card-h h2{margin:0}
+.mut{color:var(--mut)}.small{font-size:12.5px}.center{text-align:center}
+.row{display:flex;gap:10px;align-items:center}
+.field{flex:1;min-width:0;width:100%;background:#0c1124;border:1px solid var(--line2);border-radius:12px;padding:12px 14px;outline:none;transition:border-color .15s,box-shadow .15s}
+.field:focus{border-color:var(--pri);box-shadow:0 0 0 3px rgba(124,108,255,.25)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid var(--line2);background:#1a2246;color:var(--txt);padding:11px 16px;border-radius:12px;font-weight:700;font-size:14px;cursor:pointer;text-decoration:none;white-space:nowrap;transition:transform .05s,filter .15s}
+.btn:hover{filter:brightness(1.13)}
+.btn:active{transform:translateY(1px)}
+.btn:disabled{opacity:.55;cursor:default;filter:none}
+.btn.pri{border:0;background:linear-gradient(135deg,var(--pri),var(--pri2));color:#fff;box-shadow:0 6px 18px rgba(92,110,255,.35)}
+.btn.ok{border:0;background:linear-gradient(135deg,#1fbf6b,#169e9a);color:#fff;box-shadow:0 6px 18px rgba(31,191,107,.25)}
+.btn.ghost{background:transparent}
+.btn.sm{padding:7px 12px;font-size:13px;border-radius:10px}
+.btn.danger{color:#ff8aa1;border-color:rgba(255,92,122,.4);background:rgba(255,92,122,.08)}
+.ib{width:34px;height:34px;display:inline-grid;place-items:center;border-radius:10px;border:1px solid var(--line2);background:#141b3a;color:var(--mut);cursor:pointer;font-size:13px;flex:none}
+.ib:hover{color:var(--txt);border-color:var(--pri)}
+.ib:disabled{opacity:.3;cursor:default}
+.hint{color:var(--dim);font-size:12.5px;margin:10px 2px 0}
+.addon{display:flex;flex-wrap:wrap;gap:12px 14px;align-items:center;padding:14px;border:1px solid var(--line);border-radius:14px;background:rgba(12,17,36,.55);margin-top:10px;transition:opacity .2s,border-color .2s}
+.addon:hover{border-color:var(--line2)}
+.addon.off{opacity:.55}
+.alogo{width:46px;height:46px;border-radius:12px;object-fit:cover;background:#0c1124;flex:none}
+.ainfo{flex:1;min-width:200px}
+.aname{font-weight:750;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.aurl{color:var(--dim);font:12px ui-monospace,SFMono-Regular,Menlo,monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;max-width:520px}
+.astats{color:var(--mut);font-size:12.5px;margin-top:4px;display:flex;gap:4px 14px;flex-wrap:wrap}
+.aerr{color:#ff9fb2;font-size:12.5px;margin-top:4px}
+.actl{display:flex;gap:6px;align-items:center;flex:none}
+.amore{flex-basis:100%;display:flex;gap:8px;flex-wrap:wrap;padding-top:12px;border-top:1px solid var(--line)}
+.sel{background:#0c1124;border:1px solid var(--line2);border-radius:10px;padding:7px 9px;font-size:13px;color:var(--txt);max-width:100%}
+.switch{position:relative;width:44px;height:26px;flex:none;display:inline-block}
+.switch input{opacity:0;width:0;height:0;position:absolute}
+.switch span{position:absolute;inset:0;background:#2a3359;border-radius:99px;cursor:pointer;transition:background .2s}
+.switch span:before{content:"";position:absolute;width:20px;height:20px;left:3px;top:3px;background:#fff;border-radius:50%;transition:transform .2s;box-shadow:0 2px 6px rgba(0,0,0,.3)}
+.switch input:checked+span{background:linear-gradient(135deg,#21c472,#16a59c)}
+.switch input:checked+span:before{transform:translateX(18px)}
+.switch input:focus-visible+span{box-shadow:0 0 0 3px rgba(124,108,255,.45)}
+.empty{padding:26px;text-align:center;color:var(--mut);border:1px dashed var(--line2);border-radius:14px;margin-top:12px}
+.preview{margin-top:14px;border:1px solid var(--line2);border-radius:14px;padding:16px;background:rgba(10,14,30,.6);animation:fade .25s ease}
+@keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+.pv-h{display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap}
+.pv-h img{width:56px;height:56px;border-radius:14px;object-fit:cover;background:#0c1124;flex:none}
+.pv-h h3{margin:0;font-size:17px}
+.pv-desc{color:var(--mut);font-size:13px;margin:4px 0 0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+.chip{font-size:12px;padding:3px 9px;border-radius:99px;background:#1a2246;border:1px solid var(--line2);color:#c7cfee}
+.chip.on{background:rgba(124,108,255,.18);border-color:rgba(124,108,255,.5);color:#fff}
+.kv{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-top:14px}
+.kv div{background:#0f1530;border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.kv b{display:block;font-size:19px;letter-spacing:-.01em}
+.kv span{color:var(--mut);font-size:12px}
+.warn,.err,.okbox{margin-top:12px;padding:10px 12px;border-radius:12px;font-size:13.5px}
+.warn{background:rgba(255,201,77,.08);border:1px solid rgba(255,201,77,.3);color:#ffdc94}
+.err{background:rgba(255,92,122,.08);border:1px solid rgba(255,92,122,.35);color:#ffb3c1}
+.okbox{background:rgba(47,210,122,.08);border:1px solid rgba(47,210,122,.3);color:#a3f5c8}
+.loading{display:flex;align-items:center;gap:12px;color:var(--mut);margin-top:14px}
+.spin{width:18px;height:18px;border-radius:50%;border:2px solid rgba(255,255,255,.15);border-top-color:#a99dff;animation:spin .8s linear infinite;flex:none;display:inline-block}
+@keyframes spin{to{transform:rotate(360deg)}}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px 16px}
+.opt{display:flex;gap:12px;align-items:flex-start;padding:11px 12px;border-radius:12px;cursor:pointer;border:1px solid var(--line);background:rgba(12,17,36,.45)}
+.opt:hover{border-color:var(--line2)}
+.opt.on{border-color:rgba(124,108,255,.65);background:rgba(124,108,255,.1)}
+.opt input{margin-top:4px;accent-color:var(--pri);transform:scale(1.15)}
+.opt b{display:block;font-size:14.5px}
+.opt span{color:var(--mut);font-size:12.5px}
+.lbl{display:block;font-size:13px;color:var(--mut);margin:0 0 6px;font-weight:600}
+.select{width:100%;background:#0c1124;border:1px solid var(--line2);border-radius:12px;padding:11px 12px;font-size:14px;color:var(--txt)}
+.tg{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:12px 2px;border-top:1px solid var(--line)}
+.tg:first-of-type{border-top:0}
+.tg b{display:block;font-size:14.5px}
+.tg span{color:var(--mut);font-size:12.5px}
+.langs{display:flex;flex-wrap:wrap;gap:8px}
+.langs button{border:1px solid var(--line2);background:#121a38;color:#c7cfee;border-radius:99px;padding:6px 13px;font-size:13px;cursor:pointer}
+.langs button.on{background:linear-gradient(135deg,rgba(124,108,255,.4),rgba(61,139,253,.4));border-color:rgba(124,108,255,.75);color:#fff}
+.results{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:12px;margin-top:14px}
+.tile{background:#0f1530;border:1px solid var(--line);border-radius:12px;overflow:hidden;cursor:pointer;transition:transform .12s,border-color .12s;text-align:left;padding:0;color:var(--txt)}
+.tile:hover{transform:translateY(-2px);border-color:var(--pri)}
+.tile.sel{border-color:var(--pri);box-shadow:0 0 0 2px rgba(124,108,255,.45)}
+.tile .ph{aspect-ratio:2/3;background:#0c1124;display:grid;place-items:center;color:var(--dim);font-size:28px;position:relative;overflow:hidden}
+.tile .ph img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.tile .tt{padding:7px 9px 9px;font-size:12.5px;line-height:1.3}
+.tile .tt b{display:block;font-weight:650;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tile .tt span{color:var(--dim)}
+.picked{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:14px;padding:12px;border:1px solid var(--line2);border-radius:14px;background:rgba(10,14,30,.6)}
+.picked img{width:46px;height:69px;object-fit:cover;border-radius:8px;background:#0c1124}
+.stream{display:grid;grid-template-columns:120px 1fr auto;gap:14px;padding:13px 14px;border:1px solid var(--line);border-radius:14px;background:rgba(12,17,36,.6);margin-top:10px;align-items:start}
+.stream.new{border-color:rgba(47,210,122,.45);box-shadow:inset 3px 0 0 #2fd27a}
+.sname{white-space:pre-line;font-weight:800;font-size:15px;line-height:1.35}
+.sdesc{white-space:pre-line;font-size:13px;color:#cdd4f0;line-height:1.6;min-width:0;overflow-wrap:anywhere}
+.sum{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+.bars{margin-top:10px;display:grid;gap:7px}
+.bar{display:grid;grid-template-columns:minmax(120px,260px) 1fr 40px;gap:10px;align-items:center;font-size:12.5px;color:var(--mut)}
+.bar i{display:block;height:8px;border-radius:99px;background:linear-gradient(90deg,#ff6b86,#ffa25c)}
+.bar b{text-align:right;color:var(--txt)}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th,td{text-align:left;padding:9px 8px;border-bottom:1px solid var(--line);vertical-align:middle}
+th{color:var(--mut);font-weight:650;font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;white-space:nowrap}
+td.sub{color:var(--dim);font-size:12px}
+.tw{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-top:6px}
+.stat{background:#0f1530;border:1px solid var(--line);border-radius:14px;padding:14px}
+.stat b{display:block;font-size:22px;letter-spacing:-.02em}
+.stat span{color:var(--mut);font-size:12.5px}
+.linkbox{background:#0a0f22;border:1px dashed var(--line2);border-radius:12px;padding:12px;font:12.5px ui-monospace,SFMono-Regular,Menlo,monospace;word-break:break-all;color:#cbd5ff}
+.btns{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+.steps{margin:8px 0 0;padding-left:20px;color:#cdd4f0;font-size:14px}
+.steps li{margin:7px 0}
+code{font:12.5px ui-monospace,SFMono-Regular,Menlo,monospace;background:#0c1124;border:1px solid var(--line);padding:1px 6px;border-radius:6px}
+details summary{cursor:pointer;color:#b9c3e6;font-size:13.5px;margin-top:12px;font-weight:600}
+.savebar{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);display:flex;gap:8px;align-items:center;padding:9px 9px 9px 18px;background:rgba(22,28,60,.97);border:1px solid rgba(124,108,255,.55);border-radius:16px;box-shadow:0 18px 50px rgba(0,0,0,.5);z-index:40;max-width:calc(100% - 24px);animation:fade .2s ease}
+.savebar span{font-weight:650;font-size:14px;margin-right:6px;white-space:nowrap}
+.toast{position:fixed;left:50%;top:18px;transform:translateX(-50%) translateY(-16px);opacity:0;pointer-events:none;background:#1b2350;border:1px solid var(--line2);padding:11px 16px;border-radius:12px;box-shadow:0 12px 40px rgba(0,0,0,.45);z-index:60;transition:opacity .2s,transform .2s;font-weight:600;font-size:14px;max-width:calc(100% - 24px)}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast.ok{border-color:rgba(47,210,122,.6)}.toast.bad{border-color:rgba(255,92,122,.7)}
+.narrow{max-width:430px;margin:48px auto}
+.login-logo{display:block;width:76px;height:76px;border-radius:20px;margin:4px auto 14px;box-shadow:0 10px 30px rgba(124,108,255,.38)}
+.foot{color:var(--dim);font-size:12px;text-align:center;margin-top:28px}
+@media (max-width:560px){.tabs{gap:2px;padding:4px}.tabs button{flex:1 1 0;flex-direction:column;gap:1px;padding:6px 2px;font-size:11.5px;line-height:1.2}.tabs .ti{font-size:17px}.top .ver{display:none}.top h1{white-space:nowrap}.wrap{padding-left:12px;padding-right:12px}.tiles,.kv{grid-template-columns:1fr 1fr}.stat b,.kv b{font-size:18px}}
+@media (max-width:720px){.grid2{grid-template-columns:1fr}.actl{width:100%;justify-content:flex-end}.stream{grid-template-columns:1fr}.top h1{font-size:19px}.top p{display:none}.bar{grid-template-columns:110px 1fr 30px}.card{padding:15px}.savebar span{display:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <img class="logo" src="/logo.png" alt="">
+    <div><h1>Fast Combo <span class="ver" id="ver"></span></h1><p>Your addons in one · only working, fast 1080p &amp; 4K</p></div>
+    <div class="right"><span id="live" class="pill n"><span class="dot"></span>Connecting…</span></div>
+  </header>
+
+  <section id="login" class="card narrow center hidden">
+    <img class="login-logo" src="/logo.png" alt="">
+    <h2 style="justify-content:center">Control panel</h2>
+    <p class="lead">Enter your admin password to manage your addons.</p>
+    <form id="loginForm">
+      <input id="pass" class="field" type="password" placeholder="Admin password" autocomplete="current-password">
+      <label class="row small mut" style="justify-content:center;margin:12px 0;gap:6px"><input type="checkbox" id="remember" checked> Remember on this device</label>
+      <button class="btn pri" type="submit" style="width:100%">Unlock</button>
+    </form>
+    <div id="loginErr" class="err hidden"></div>
+  </section>
+
+  <main id="app" class="hidden">
+    <nav class="tabs" id="tabs">
+      <button type="button" data-tab="addons"><span class="ti">🧩</span>Addons</button>
+      <button type="button" data-tab="settings"><span class="ti">⚙️</span>Settings</button>
+      <button type="button" data-tab="try"><span class="ti">🔎</span>Try it</button>
+      <button type="button" data-tab="health"><span class="ti">🩺</span>Health</button>
+      <button type="button" data-tab="install"><span class="ti">📲</span>Install</button>
+    </nav>
+
+    <section data-pane="addons">
+      <div class="card">
+        <h2>Add an addon</h2>
+        <p class="lead">Paste the install link of a Stremio addon you use. It is tested live before it is added.</p>
+        <form id="addForm" class="row">
+          <input id="addUrl" class="field" placeholder="https://…/manifest.json  or  stremio://…" autocomplete="off" autocapitalize="off" spellcheck="false">
+          <button class="btn pri" id="addBtn" type="submit">Check</button>
+        </form>
+        <div id="inspect"></div>
+      </div>
+      <div class="card">
+        <div class="card-h"><h2>Your addons</h2><span class="mut small" id="addonCount"></span></div>
+        <p class="lead">All switched-on addons are asked at the same time. Dead or slow ones are skipped automatically and retried later. <b>Priority</b> decides which addon's link wins when two have the same file.</p>
+        <div id="addonList"></div>
+      </div>
+    </section>
+
+    <section data-pane="settings" class="hidden"><div id="settingsBody"></div></section>
+
+    <section data-pane="try" class="hidden">
+      <div class="card">
+        <h2>Try it</h2>
+        <p class="lead">See exactly what Stremio will get for any movie or episode, and why other streams were removed.</p>
+        <form id="searchForm" class="row">
+          <input id="q" class="field" placeholder="Search a movie or series…  (or paste an ID like tt1375666)" autocomplete="off">
+          <button class="btn pri" type="submit">Search</button>
+        </form>
+        <div id="results"></div>
+        <div id="picked"></div>
+      </div>
+      <div id="tryOut"></div>
+    </section>
+
+    <section data-pane="health" class="hidden">
+      <div class="card">
+        <div class="card-h"><h2>Live health</h2><div class="row"><label class="row small mut" style="gap:6px"><input type="checkbox" id="autoH" checked> Auto-refresh</label><button type="button" class="btn sm" id="pingBtn">↻ Check addons now</button></div></div>
+        <div class="tiles" id="hTiles"></div>
+        <p class="hint" id="hNote"></p>
+      </div>
+      <div class="card"><h2>Addons</h2><div class="tw" id="hAddons"></div></div>
+      <div class="card"><h2>File hosts</h2><p class="lead">From live link tests in the last 30 minutes. Failing hosts are skipped automatically.</p><div class="tw" id="hHosts"></div></div>
+      <div class="card"><h2>Recent requests</h2><div class="tw" id="hRecent"></div></div>
+    </section>
+
+    <section data-pane="install" class="hidden">
+      <div class="card">
+        <h2>Install in Stremio</h2>
+        <div id="installNote" class="okbox hidden">✅ Saved. Your addon list is inside this new link. Remove the old Fast Combo in Stremio, then install this one.</div>
+        <div class="linkbox" id="instLink" style="margin-top:12px"></div>
+        <div class="btns">
+          <a class="btn pri" id="instApp" href="#">📲 Install in Stremio app</a>
+          <a class="btn" id="instWeb" href="#" target="_blank" rel="noopener">🌐 Stremio Web</a>
+          <button type="button" class="btn" id="instCopy">📋 Copy link</button>
+        </div>
+        <p class="hint">Keep this link private — it uses your addons.</p>
+      </div>
+      <div class="card" id="modeCard"></div>
+    </section>
+    <p class="foot">⚡ Fast Combo <span id="ver2"></span> · uses only the addons you add · <a href="#health">health</a></p>
+  </main>
+
+  <div id="saveBar" class="savebar hidden"><span>Unsaved changes</span><button type="button" class="btn ghost sm" id="undoBtn">Undo</button><button type="button" class="btn pri sm" id="saveBtn">Save changes</button></div>
+  <div id="toast" class="toast"></div>
+</div>
+<script>
+(function () {
+'use strict';
+var B = __BOOT__;
+var LS = 'fc_admin_' + B.key;
+var PASS = B.auto || '';
+try { if (!PASS) PASS = localStorage.getItem(LS) || ''; } catch (e) {}
+var S = { prof: null, saved: '', meta: {}, health: null, token: B.token || '', storage: !!B.storage, tab: 'addons', inspect: null, found: [], pick: null, eps: null, streams: [], hTimer: 0, started: false };
+
+function $(q, r) { return (r || document).querySelector(q); }
+function $$(q, r) { return Array.prototype.slice.call((r || document).querySelectorAll(q)); }
+function esc(v) { return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+function fmtMs(ms) { if (ms == null || ms === '' || isNaN(ms)) return '—'; ms = +ms; return ms < 1000 ? Math.round(ms) + ' ms' : (ms / 1000).toFixed(ms < 9950 ? 1 : 0) + ' s'; }
+function ago(t) { if (!t) return '—'; var s = Math.max(0, Math.round((Date.now() - t) / 1000)); if (s < 45) return 'just now'; if (s < 3600) return Math.round(s / 60) + ' min ago'; if (s < 86400) return Math.round(s / 3600) + ' h ago'; return Math.round(s / 86400) + ' d ago'; }
+function dur(ms) { var m = Math.round(ms / 60000); if (m < 60) return m + ' min'; if (m < 2880) return Math.round(m / 60) + ' h'; return Math.round(m / 1440) + ' days'; }
+function shortUrl(u) { try { var x = new URL(u), p = x.pathname; if (p.length > 42) p = p.slice(0, 16) + '…' + p.slice(-22); return x.host + p; } catch (e) { return u; } }
+function plural(n, w) { return n + ' ' + w + (n === 1 ? '' : 's'); }
+function onCount() { return S.prof ? S.prof.addons.filter(function (a) { return a.on; }).length : 0; }
+function toast(msg, kind) { var t = $('#toast'); t.textContent = msg; t.className = 'toast show ' + (kind || ''); clearTimeout(toast.t); toast.t = setTimeout(function () { t.className = 'toast ' + (kind || ''); }, 3800); }
+function copy(text, label) {
+  var done = function () { toast('📋 ' + (label || 'Copied')); };
+  if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(text).then(done, function () { window.prompt('Copy this:', text); });
+  else window.prompt('Copy this:', text);
+}
+
+/* ---------- server ---------- */
+function apiUrl(p) { return location.origin + '/' + B.key + (S.token ? '/' + S.token : '') + '/api/' + p; }
+function api(p, body) {
+  var o = { method: body ? 'POST' : 'GET', headers: { 'x-admin-key': encodeURIComponent(PASS) }, cache: 'no-store' };
+  if (body) { o.headers['content-type'] = 'application/json'; o.body = JSON.stringify(body); }
+  return fetch(apiUrl(p), o).then(function (r) {
+    if (r.status === 401) {
+      try { localStorage.removeItem(LS); } catch (e) {}
+      showLogin(PASS ? 'Wrong password, try again.' : '');
+      var err = new Error('login'); err.login = true; throw err;
+    }
+    return r.json().catch(function () { return { ok: false, error: 'Server error (HTTP ' + r.status + ')' }; });
+  }, function () { throw new Error('Can’t reach the server. Check your internet connection.'); });
+}
+
+/* ---------- login ---------- */
+function showLogin(msg) {
+  $('#app').classList.add('hidden'); $('#saveBar').classList.add('hidden');
+  $('#login').classList.remove('hidden');
+  var e = $('#loginErr'); e.textContent = msg || ''; e.classList.toggle('hidden', !msg);
+  setTimeout(function () { $('#pass').focus(); }, 30);
+}
+$('#loginForm').addEventListener('submit', function (ev) {
+  ev.preventDefault();
+  PASS = $('#pass').value.trim(); if (!PASS) return;
+  try { if ($('#remember').checked) localStorage.setItem(LS, PASS); else localStorage.removeItem(LS); } catch (e) {}
+  load();
+});
+function load() {
+  return api('profile').then(function (p) {
+    if (!p.ok) throw new Error(p.error || 'Could not load your addons');
+    $('#login').classList.add('hidden'); $('#app').classList.remove('hidden');
+    setProfile(p);
+    if (p.badToken) toast('⚠️ This link could not be read (old or changed secret) — showing saved setup', 'bad');
+    if (!S.started) {
+      S.started = true;
+      showTab((location.hash || '').slice(1) || B.tab || 'addons');
+      refreshHealth(false);
+      setInterval(function () { if (!document.hidden) refreshHealth(false); }, 30000);
+    }
+  }).catch(function (e) { if (!e.login) showLogin(e.message); });
+}
+
+/* ---------- profile state ---------- */
+function setProfile(p) {
+  S.prof = { addons: p.addons.map(function (a) { return { id: a.id, name: a.name, url: a.url, on: !!a.on, w: a.w || 0 }; }), settings: Object.assign({}, p.settings) };
+  p.addons.forEach(function (a) { S.meta[a.id] = { logo: a.logo || '', version: a.version || '' }; });
+  S.storage = !!p.storage;
+  S.saved = snap();
+  $('#ver').textContent = 'v' + p.version; $('#ver2').textContent = 'v' + p.version;
+  renderAddons(); renderSettings(); renderInstall(); markDirty();
+}
+function snap() { return JSON.stringify(S.prof); }
+function dirty() { return !!S.prof && snap() !== S.saved; }
+function markDirty() { $('#saveBar').classList.toggle('hidden', !dirty()); }
+window.addEventListener('beforeunload', function (e) { if (dirty()) { e.preventDefault(); e.returnValue = ''; } });
+
+/* ---------- tabs ---------- */
+$('#tabs').addEventListener('click', function (e) { var b = e.target.closest('button[data-tab]'); if (b) showTab(b.getAttribute('data-tab')); });
+window.addEventListener('hashchange', function () { var t = location.hash.slice(1); if (t && t !== S.tab && S.started) showTab(t); });
+function showTab(t) {
+  if (!$('[data-pane="' + t + '"]')) t = 'addons';
+  S.tab = t;
+  $$('#tabs button').forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-tab') === t); });
+  $$('[data-pane]').forEach(function (p) { p.classList.toggle('hidden', p.getAttribute('data-pane') !== t); });
+  if (location.hash !== '#' + t) { try { history.replaceState(null, '', '#' + t); } catch (e) {} }
+  clearInterval(S.hTimer);
+  if (t === 'health') { renderHealth(); refreshHealth(false); S.hTimer = setInterval(function () { if (!document.hidden && $('#autoH').checked) refreshHealth(false); }, 15000); }
+  if (t === 'install') renderInstall();
+}
+
+/* ---------- addons ---------- */
+function healthOf(id) { var L = S.health && S.health.addons; if (!L) return null; for (var i = 0; i < L.length; i++) if (L[i].id === id) return L[i]; return null; }
+var AST = { working: ['g', 'Working'], slow: ['y', 'Slow'], failing: ['y', 'Last try failed'], down: ['r', 'Down · paused'], unknown: ['n', 'Ready'], off: ['n', 'Off'] };
+function statusOf(a) { if (!a.on) return AST.off; var h = healthOf(a.id); return h ? (AST[h.status] || ['n', h.status]) : ['b', 'Not saved yet']; }
+function renderAddons() {
+  var L = S.prof.addons, el = $('#addonList');
+  $('#addonCount').textContent = onCount() + ' on · ' + L.length + ' of ' + B.maxAddons;
+  if (!L.length) { el.innerHTML = '<div class="empty">No addons yet. Paste an addon link above to add your first one.</div>'; return; }
+  el.innerHTML = L.map(function (a, i) {
+    var m = S.meta[a.id] || {}, h = healthOf(a.id), st = statusOf(a), bits = [];
+    if (h && h.avgMs) bits.push('⏱ ' + fmtMs(h.avgMs) + ' avg answer');
+    if (h && h.lastCount != null) bits.push('📦 ' + h.lastCount + ' streams last time');
+    if (h && (h.ok || h.fail)) bits.push('✅ ' + h.ok + ' · ❌ ' + h.fail);
+    if (m.version) bits.push('v' + esc(m.version));
+    return '<div class="addon' + (a.on ? '' : ' off') + '" data-i="' + i + '">' +
+      '<img class="alogo" alt="" src="' + esc(m.logo || '/logo.png') + '" onerror="this.onerror=null;this.src=\'/logo.png\'">' +
+      '<div class="ainfo"><div class="aname"><span>' + esc(a.name) + '</span><span class="pill ' + st[0] + '"><span class="dot"></span>' + st[1] + '</span>' +
+      (a.w > 0 ? '<span class="pill b">▲ High priority</span>' : a.w < 0 ? '<span class="pill n">▼ Low priority</span>' : '') + '</div>' +
+      '<div class="aurl" title="' + esc(a.url) + '">' + esc(shortUrl(a.url)) + '</div>' +
+      (bits.length ? '<div class="astats">' + bits.map(function (b) { return '<span>' + b + '</span>'; }).join('') + '</div>' : '') +
+      (h && h.lastErr ? '<div class="aerr">⚠ ' + esc(h.lastErr) + '</div>' : '') + '</div>' +
+      '<div class="actl">' +
+      '<select class="sel" data-act="w" title="Priority"><option value="1"' + (a.w > 0 ? ' selected' : '') + '>High</option><option value="0"' + (!a.w ? ' selected' : '') + '>Normal</option><option value="-1"' + (a.w < 0 ? ' selected' : '') + '>Low</option></select>' +
+      '<label class="switch" title="Switch on / off"><input type="checkbox" data-act="on"' + (a.on ? ' checked' : '') + '><span></span></label>' +
+      '<button type="button" class="ib" data-act="up" title="Move up"' + (i ? '' : ' disabled') + '>▲</button>' +
+      '<button type="button" class="ib" data-act="down" title="Move down"' + (i < L.length - 1 ? '' : ' disabled') + '>▼</button>' +
+      '<button type="button" class="ib" data-act="more" title="More">⋯</button></div>' +
+      '<div class="amore hidden"><button type="button" class="btn sm" data-act="ren">✏️ Rename</button><button type="button" class="btn sm" data-act="copy">📋 Copy addon link</button><button type="button" class="btn sm" data-act="recheck">🔁 Test again</button><button type="button" class="btn sm danger" data-act="del">🗑 Remove</button></div>' +
+      '</div>';
+  }).join('');
+}
+$('#addonList').addEventListener('click', function (e) {
+  var b = e.target.closest('button[data-act]'); if (!b) return;
+  var row = b.closest('.addon'), i = +row.getAttribute('data-i'), L = S.prof.addons, a = L[i], act = b.getAttribute('data-act'), t;
+  if (act === 'more') { row.querySelector('.amore').classList.toggle('hidden'); return; }
+  if (act === 'copy') { copy(a.url, 'Addon link copied'); return; }
+  if (act === 'recheck') { $('#addUrl').value = a.url; window.scrollTo({ top: 0, behavior: 'smooth' }); inspect(a.url); return; }
+  if (act === 'up' && i > 0) { t = L[i - 1]; L[i - 1] = a; L[i] = t; }
+  else if (act === 'down' && i < L.length - 1) { t = L[i + 1]; L[i + 1] = a; L[i] = t; }
+  else if (act === 'ren') { var n = window.prompt('Name for this addon:', a.name); if (n == null) return; n = n.trim().slice(0, 40); if (!n) return; a.name = n; }
+  else if (act === 'del') { if (!window.confirm('Remove “' + a.name + '” from Fast Combo?')) return; L.splice(i, 1); }
+  else return;
+  renderAddons(); markDirty();
+});
+$('#addonList').addEventListener('change', function (e) {
+  var el = e.target, act = el.getAttribute('data-act'); if (!act) return;
+  var a = S.prof.addons[+el.closest('.addon').getAttribute('data-i')];
+  if (act === 'on') a.on = el.checked; else if (act === 'w') a.w = +el.value;
+  renderAddons(); markDirty();
+});
+
+/* ---------- add / inspect ---------- */
+$('#addForm').addEventListener('submit', function (e) { e.preventDefault(); var u = $('#addUrl').value.trim(); if (!u) { $('#addUrl').focus(); return; } inspect(u); });
+function inspect(url) {
+  var btn = $('#addBtn'); btn.disabled = true; btn.innerHTML = '<span class="spin"></span>';
+  $('#inspect').innerHTML = '<div class="loading"><div class="spin"></div><div>Testing it live: opening the addon, running a test search and checking a few links… <span style="color:var(--dim)">(up to 25 s)</span></div></div>';
+  api('inspect', { url: url }).then(renderInspect).catch(function (e) { if (!e.login) $('#inspect').innerHTML = '<div class="err">' + esc(e.message) + '</div>'; })
+    .then(function () { btn.disabled = false; btn.textContent = 'Check'; });
+}
+function verdict(r) {
+  var s = r.sample;
+  if (!s) return (r.resources || []).indexOf('stream') < 0 ? ['y', 'Online · no streams'] : ['g', 'Online'];
+  if (s.error) return ['r', 'Online, but the test search failed'];
+  if (!s.total) return ['y', 'Online, but found nothing in the test'];
+  if (!(s.hd + s.uhd)) return ['y', 'Works, but no 1080p / 4K in the test'];
+  if (s.linksTested && !s.linksOk) return ['y', 'Works, but its test links didn’t start'];
+  if (s.ms > 9000) return ['y', 'Works, but slow (' + fmtMs(s.ms) + ')'];
+  return ['g', 'Works · has 1080p / 4K'];
+}
+function renderInspect(r) {
+  S.inspect = r;
+  var box = $('#inspect');
+  if (!r.ok) { box.innerHTML = '<div class="err">❌ ' + esc(r.error) + '</div>'; return; }
+  var already = S.prof.addons.some(function (a) { return a.id === r.aid; });
+  var full = !already && S.prof.addons.length >= B.maxAddons;
+  var v = verdict(r), s = r.sample, tiles = ['<div><b>' + fmtMs(r.manifestMs) + '</b><span>to open the addon</span></div>'];
+  if (s && !s.error) {
+    tiles.push('<div><b>' + s.total + '</b><span>streams for ' + esc(s.label) + ' · ' + fmtMs(s.ms) + '</span></div>');
+    tiles.push('<div><b>' + s.uhd + ' · ' + s.hd + '</b><span>in 4K · in 1080p</span></div>');
+    if (s.linksTested) tiles.push('<div><b>' + s.linksOk + ' / ' + s.linksTested + '</b><span>test links started' + (s.linksMs ? ' · fastest ' + fmtMs(s.linksMs) : '') + '</span></div>');
+    else if (s.p2p) tiles.push('<div><b>' + s.p2p + '</b><span>torrent streams</span></div>');
+  }
+  var chips = (r.types || []).map(function (t) { return '<span class="chip">' + esc(t) + '</span>'; }).join('') +
+    (r.resources || []).map(function (t) { return '<span class="chip on">' + esc(t) + '</span>'; }).join('') +
+    (r.catalogs ? '<span class="chip">' + plural(r.catalogs, 'catalog') + '</span>' : '');
+  var warns = (r.warnings || []).map(function (w) { return '<div class="warn">⚠️ ' + esc(w) + '</div>'; }).join('');
+  var action = already ? '<button type="button" class="btn" disabled>✓ Already in your list</button>' : full ? '<button type="button" class="btn" disabled>Your list is full (' + B.maxAddons + ')</button>' : '<button type="button" class="btn ok" id="doAdd">＋ Add to Fast Combo</button>';
+  box.innerHTML = '<div class="preview"><div class="pv-h"><img alt="" src="' + esc(r.logo || '/logo.png') + '" onerror="this.onerror=null;this.src=\'/logo.png\'">' +
+    '<div style="flex:1;min-width:180px"><h3>' + esc(r.name) + ' <span class="ver">v' + esc(r.version || '?') + '</span></h3><p class="pv-desc">' + esc(r.description || '') + '</p></div>' +
+    '<span class="pill ' + v[0] + '"><span class="dot"></span>' + esc(v[1]) + '</span></div>' +
+    '<div class="chips">' + chips + '</div><div class="kv">' + tiles.join('') + '</div>' + warns +
+    '<div class="btns">' + action + '<button type="button" class="btn ghost" id="pvClose">Close</button></div></div>';
+}
+$('#inspect').addEventListener('click', function (e) {
+  if (e.target.id === 'pvClose') { $('#inspect').innerHTML = ''; return; }
+  if (e.target.id !== 'doAdd') return;
+  var r = S.inspect; if (!r || !r.ok) return;
+  S.prof.addons.push({ id: r.aid, name: r.name, url: r.url, on: true, w: 0 });
+  S.meta[r.aid] = { logo: r.logo || '', version: r.version || '' };
+  $('#addUrl').value = '';
+  $('#inspect').innerHTML = '<div class="okbox">✅ <b>' + esc(r.name) + '</b> is in your list. Press <b>Save changes</b> to start using it.</div>';
+  renderAddons(); markDirty();
+});
+
+/* ---------- save ---------- */
+$('#undoBtn').addEventListener('click', function () { S.prof = JSON.parse(S.saved); renderAddons(); renderSettings(); markDirty(); toast('Changes undone'); });
+$('#saveBtn').addEventListener('click', function () {
+  var btn = $('#saveBtn'); btn.disabled = true; btn.textContent = 'Saving…';
+  api('profile', { addons: S.prof.addons, settings: S.prof.settings }).then(function (r) {
+    if (!r.ok) throw new Error(r.error || 'Could not save');
+    S.saved = snap(); markDirty();
+    if (r.mode === 'link') {
+      S.token = r.token;
+      try { history.replaceState(null, '', '/' + B.key + '/' + r.token + '/configure#install'); } catch (e) {}
+      $('#installNote').classList.remove('hidden'); showTab('install');
+      toast('✅ Saved. Install the new link to apply it', 'ok');
+    } else {
+      if (S.token) { S.token = ''; try { history.replaceState(null, '', '/' + B.key + '/configure' + location.hash); } catch (e) {} renderInstall(); }
+      toast('✅ Saved. Stremio gets it automatically (within a minute)', 'ok');
+    }
+    setTimeout(function () { refreshHealth(false); }, 400);
+  }).catch(function (e) { if (!e.login) toast('❌ ' + e.message, 'bad'); })
+    .then(function () { btn.disabled = false; btn.textContent = 'Save changes'; });
+});
+
+/* ---------- settings ---------- */
+var SORTS = [['balanced', '⚖️ Balanced', 'Working, fast links first. Mixes 4K and 1080p; smaller files win ties.'], ['smallest', '🪶 Smallest first', 'Lowest bitrate first: starts fastest, best for slow internet.'], ['4kfirst', '🔥 4K first', 'All 4K on top, then 1080p.'], ['1080first', '🚀 1080p first', '1080p on top (lighter), then 4K.']];
+var M1080 = [[4, '4 Mbps · ≈3.6 GB per 2 h movie'], [6, '6 Mbps · ≈5.4 GB'], [8, '8 Mbps · ≈7 GB (default)'], [12, '12 Mbps · ≈11 GB'], [16, '16 Mbps · ≈14 GB'], [0, 'No limit']];
+var M4K = [[10, '10 Mbps · ≈9 GB per 2 h movie'], [15, '15 Mbps · ≈13.5 GB'], [20, '20 Mbps · ≈18 GB (default)'], [30, '30 Mbps · ≈27 GB'], [40, '40 Mbps · ≈36 GB'], [0, 'No limit']];
+var LIMITS = [[10, '10 streams'], [15, '15 streams'], [20, '20 streams'], [30, '30 streams'], [50, '50 streams']];
+var RES = [['2160', '4K'], ['1080', '1080p'], ['720', '720p · slow internet']];
+var TOGGLES = [['test', '🧪 Test links live', 'Checks links before showing them and hides the dead ones.'], ['newBadge', '🆕 Mark new links', 'Links that appear after you first opened a title get a 🆕 badge for ' + B.newHours + ' h.'], ['remux', '💿 Allow REMUX', 'Untouched Blu-ray copies: huge files, slow to buffer.'], ['hideDV', '🟣 Hide Dolby-Vision-only', 'For TVs without Dolby Vision (wrong purple / green colours).'], ['hideAV1', '🧩 Hide AV1', 'For older devices that can’t play AV1.']];
+function options(list, cur) {
+  if (!list.some(function (o) { return +o[0] === +cur; })) list = list.concat([[cur, cur + ' (custom)']]);
+  return list.map(function (o) { return '<option value="' + o[0] + '"' + (+o[0] === +cur ? ' selected' : '') + '>' + esc(o[1]) + '</option>'; }).join('');
+}
+function renderSettings() {
+  var s = S.prof.settings, res = String(s.res || '').split(','), lang = String(s.lang || '').split(',').filter(Boolean);
+  var h = '<div class="card"><h2>Order</h2><p class="lead">How streams are sorted in Stremio.</p><div class="grid2">' +
+    SORTS.map(function (o) { var on = s.sort === o[0]; return '<label class="opt' + (on ? ' on' : '') + '"><input type="radio" name="sort" value="' + o[0] + '"' + (on ? ' checked' : '') + '><div><b>' + o[1] + '</b><span>' + o[2] + '</span></div></label>'; }).join('') + '</div></div>';
+  h += '<div class="card"><h2>Quality &amp; size</h2><p class="lead">A lower bitrate means a smaller file, so it buffers faster.</p><label class="lbl">Qualities to keep</label><div class="langs" data-group="res">' +
+    RES.map(function (o) { return '<button type="button" data-v="' + o[0] + '" class="' + (res.indexOf(o[0]) >= 0 ? 'on' : '') + '">' + o[1] + '</button>'; }).join('') + '</div>' +
+    '<div class="grid2" style="margin-top:16px"><div><label class="lbl">Biggest 1080p allowed</label><select class="select" data-k="max1080">' + options(M1080, s.max1080) + '</select></div>' +
+    '<div><label class="lbl">Biggest 4K allowed</label><select class="select" data-k="max4k">' + options(M4K, s.max4k) + '</select></div>' +
+    '<div><label class="lbl">Show up to</label><select class="select" data-k="limit">' + options(LIMITS, s.limit) + '</select></div></div></div>';
+  h += '<div class="card"><h2>Links</h2>' + TOGGLES.map(function (o) { return '<div class="tg"><div><b>' + o[1] + '</b><span>' + esc(o[2]) + '</span></div><label class="switch"><input type="checkbox" data-k="' + o[0] + '"' + (s[o[0]] ? ' checked' : '') + '><span></span></label></div>'; }).join('') + '</div>';
+  h += '<div class="card"><h2>Preferred audio languages</h2><p class="lead">Streams in these languages are moved up. Nothing is hidden.</p><div class="langs" data-group="lang">' +
+    B.langs.map(function (l) { return '<button type="button" data-v="' + l[0] + '" class="' + (lang.indexOf(l[0]) >= 0 ? 'on' : '') + '">' + (l[2] ? l[2] + ' ' : '') + esc(l[1]) + '</button>'; }).join('') + '</div></div>';
+  h += '<p class="hint center">Changes are kept on this page until you press <b>Save changes</b>.</p>';
+  $('#settingsBody').innerHTML = h;
+}
+$('#settingsBody').addEventListener('change', function (e) {
+  var el = e.target, s = S.prof.settings;
+  if (el.name === 'sort') { s.sort = el.value; renderSettings(); }
+  else if (el.matches('select[data-k]')) s[el.getAttribute('data-k')] = +el.value;
+  else if (el.matches('input[type=checkbox][data-k]')) s[el.getAttribute('data-k')] = el.checked ? 1 : 0;
+  markDirty();
+});
+$('#settingsBody').addEventListener('click', function (e) {
+  var b = e.target.closest('[data-group] button'); if (!b) return;
+  var g = b.parentNode.getAttribute('data-group'), v = b.getAttribute('data-v'), s = S.prof.settings;
+  var cur = String(s[g] || '').split(',').filter(Boolean), i = cur.indexOf(v);
+  if (i >= 0) cur.splice(i, 1); else cur.push(v);
+  if (g === 'res') { if (!cur.length) { toast('Keep at least one quality'); return; } cur.sort(function (x, y) { return y - x; }); }
+  s[g] = cur.join(',');
+  b.classList.toggle('on', i < 0);
+  markDirty();
+});
+
+/* ---------- try it ---------- */
+$('#searchForm').addEventListener('submit', function (e) { e.preventDefault(); search(); });
+function search() {
+  var q = $('#q').value.trim(); if (!q) return;
+  var idm = /^(tt\d{5,10})(?::(\d{1,3}):(\d{1,4}))?$/i.exec(q), km = /^(kitsu|mal|anilist|anidb):\d+(?::\d+)?$/i.test(q);
+  if (idm && !idm[2]) { // bare IMDb id → ask whether it is a movie or a series
+    $('#results').innerHTML = '<div class="loading"><div class="spin"></div>Looking it up…</div>';
+    api('title?id=' + encodeURIComponent(idm[1].toLowerCase())).then(function (r) {
+      $('#results').innerHTML = '';
+      if (!r.ok) { $('#results').innerHTML = '<div class="err">' + esc(r.error || 'Not found') + '</div>'; return; }
+      S.eps = r.eps; pickTitle({ id: r.id, type: r.type, name: r.name, year: r.year, poster: r.poster }, r.eps);
+    }).catch(function (e) { if (!e.login) $('#results').innerHTML = '<div class="err">' + esc(e.message) + '</div>'; });
+    return;
+  }
+  if (idm || km) { $('#results').innerHTML = ''; pickTitle({ id: q, type: (idm ? !!idm[2] : q.split(':').length > 2) ? 'series' : 'movie', name: q, direct: true }); return; }
+  $('#results').innerHTML = '<div class="loading"><div class="spin"></div>Searching…</div>';
+  api('search?q=' + encodeURIComponent(q)).then(function (r) {
+    var m = (r && r.metas) || []; S.found = m;
+    if (!m.length) { $('#results').innerHTML = '<div class="empty">Nothing found for “' + esc(q) + '”.</div>'; return; }
+    $('#results').innerHTML = '<div class="results">' + m.map(function (x, i) {
+      return '<button type="button" class="tile" data-i="' + i + '"><div class="ph">🎬' + (x.poster ? '<img loading="lazy" alt="" src="' + esc(x.poster) + '" onerror="this.remove()">' : '') + '</div><div class="tt"><b>' + esc(x.name) + '</b><span>' + esc(x.year || '') + ' · ' + (x.type === 'series' ? 'Series' : 'Movie') + '</span></div></button>';
+    }).join('') + '</div>';
+  }).catch(function (e) { if (!e.login) $('#results').innerHTML = '<div class="err">' + esc(e.message) + '</div>'; });
+}
+$('#results').addEventListener('click', function (e) {
+  var t = e.target.closest('.tile'); if (!t) return;
+  $$('.tile').forEach(function (x) { x.classList.toggle('sel', x === t); });
+  pickTitle(S.found[+t.getAttribute('data-i')]);
+});
+function pickTitle(x, eps) {
+  S.pick = x; S.eps = eps || null;
+  var series = x.type === 'series' && !x.direct;
+  $('#picked').innerHTML = '<div class="picked">' + (x.poster ? '<img alt="" src="' + esc(x.poster) + '" onerror="this.remove()">' : '') +
+    '<div style="flex:1;min-width:150px"><b>' + esc(x.name) + '</b><div class="mut small">' + esc((x.year ? x.year + ' · ' : '') + (x.type === 'series' ? 'Series' : 'Movie') + ' · ' + x.id) + '</div></div>' +
+    (series ? '<select class="sel" id="seaSel"><option value="">Loading…</option></select><select class="sel" id="epSel"></select>' : '') +
+    '<label class="row small mut" style="gap:6px" title="Ask the addons again right now instead of using the last result"><input type="checkbox" id="liveChk"> Skip cache</label>' +
+    '<button type="button" class="btn pri" id="goTry">Find streams</button></div>';
+  $('#picked').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  if (!series) runTry();
+  else if (eps) fillSeasons(eps);
+  else api('title?id=' + encodeURIComponent(x.id)).then(function (r) { fillSeasons((r && r.eps) || []); }).catch(function () { fillSeasons([]); });
+}
+function fillSeasons(eps) {
+  var seasons = [];
+  S.eps = eps;
+  eps.forEach(function (e) { if (seasons.indexOf(e[0]) < 0) seasons.push(e[0]); });
+  if (!seasons.length) seasons = [1];
+  if (!$('#seaSel')) return;
+  $('#seaSel').innerHTML = seasons.map(function (n) { return '<option value="' + n + '">Season ' + n + '</option>'; }).join('');
+  fillEps();
+}
+function fillEps() {
+  var se = +$('#seaSel').value, list = (S.eps || []).filter(function (e) { return e[0] === se; });
+  if (!list.length) list = [[se, 1, '']];
+  $('#epSel').innerHTML = list.map(function (e) { return '<option value="' + e[1] + '">E' + e[1] + (e[2] ? ' · ' + esc(e[2].slice(0, 30)) : '') + '</option>'; }).join('');
+}
+$('#picked').addEventListener('change', function (e) { if (e.target.id === 'seaSel') fillEps(); });
+$('#picked').addEventListener('click', function (e) { if (e.target.id === 'goTry') runTry(); });
+function runTry() {
+  var x = S.pick; if (!x) return;
+  var id = x.id, type = x.type;
+  if (type === 'series' && !x.direct) {
+    var se = $('#seaSel') && $('#seaSel').value, ep = $('#epSel') && $('#epSel').value;
+    if (!se || !ep) { toast('Pick an episode first'); return; }
+    id = x.id + ':' + se + ':' + ep;
+  }
+  var fresh = $('#liveChk') && $('#liveChk').checked, t0 = Date.now(), out = $('#tryOut');
+  out.innerHTML = '<div class="card"><div class="loading" style="margin:0"><div class="spin"></div>Asking ' + plural(onCount(), 'addon') + ' and testing links live… usually 2–8 s</div></div>';
+  var btn = $('#goTry'); if (btn) btn.disabled = true;
+  api('try/' + encodeURIComponent(type) + '/' + encodeURIComponent(id) + (fresh ? '?fresh=1' : '')).then(function (r) { renderTry(r, Date.now() - t0); out.scrollIntoView({ behavior: 'smooth', block: 'start' }); })
+    .catch(function (e) { if (!e.login) out.innerHTML = '<div class="err">' + esc(e.message) + '</div>'; })
+    .then(function () { var b2 = $('#goTry'); if (b2) b2.disabled = false; });
+}
+function renderTry(r, ms) {
+  var out = $('#tryOut');
+  if (!r.ok) { out.innerHTML = '<div class="err">❌ ' + esc(r.error || 'Failed') + '</div>'; return; }
+  var rep = r.report || {}, st = r.streams || [], d = rep.dropped || {}, removed = 0;
+  var keys = Object.keys(d).sort(function (a, b) { return d[b] - d[a]; });
+  keys.forEach(function (k) { removed += d[k]; });
+  var max = keys.length ? d[keys[0]] : 1;
+  S.streams = st;
+  var h = '<div class="card"><div class="card-h"><h2>' + esc(rep.title || '') + '</h2><span class="mut small">' + (r.cached ? '⚡ from cache (made ' + ago(Date.now() - r.age * 1000) + ') · ' : '') + 'answered in ' + fmtMs(ms) + '</span></div>';
+  if (dirty()) h += '<div class="warn">You have unsaved changes. This test used your saved setup.</div>';
+  h += '<div class="sum"><span class="pill b">📥 ' + (rep.total || 0) + ' found</span><span class="pill g">✅ ' + st.length + ' shown</span><span class="pill g">🧪 ' + (rep.tested || 0) + ' tested working</span>' +
+    (rep.newCount ? '<span class="pill y">🆕 ' + rep.newCount + ' new</span>' : '') + (rep.ms != null ? '<span class="pill n">⏱ built in ' + fmtMs(rep.ms) + '</span>' : '') + '</div>';
+  h += '<div class="chips">' + (rep.ups || []).map(function (u) {
+    return '<span class="chip">' + esc(u.name) + ' · ' + (u.err ? '❌ ' + esc(u.err) : u.skipped ? '⏭ ' + (u.skipped === 'unsupported' ? 'doesn’t cover this' : 'paused (down)') : u.n + ' streams' + (u.cached ? ' · cached' : u.ms ? ' · ' + fmtMs(u.ms) : '')) + '</span>';
+  }).join('') + '</div>';
+  if (!(rep.ups || []).length) h += '<div class="warn">No addons are switched on.</div>';
+  if (keys.length) h += '<details><summary>Removed ' + removed + ' — see why</summary><div class="bars">' + keys.map(function (k) { return '<div class="bar"><span>' + esc(k) + '</span><i style="width:' + Math.max(3, Math.round(d[k] / max * 100)) + '%"></i><b>' + d[k] + '</b></div>'; }).join('') + '</div></details>';
+  h += '</div>';
+  h += st.length ? st.map(function (s, i) {
+    return '<div class="stream' + (/🆕/.test(s.name || '') ? ' new' : '') + '"><div class="sname">' + esc(s.name) + '</div><div class="sdesc">' + esc(s.description || s.title || '') + '</div><div>' + (s.url ? '<button type="button" class="ib" data-copy="' + i + '" title="Copy stream link">📋</button>' : '') + '</div></div>';
+  }).join('') : '<div class="empty">No streams passed the filters for this title.</div>';
+  out.innerHTML = h;
+}
+$('#tryOut').addEventListener('click', function (e) { var b = e.target.closest('[data-copy]'); if (b) copy(S.streams[+b.getAttribute('data-copy')].url, 'Stream link copied'); });
+
+/* ---------- health ---------- */
+$('#pingBtn').addEventListener('click', function () {
+  var b = this; b.disabled = true; b.textContent = 'Checking…';
+  refreshHealth(true).then(function () { b.disabled = false; b.textContent = '↻ Check addons now'; toast('All addons checked'); });
+});
+function refreshHealth(ping) {
+  return api('health' + (ping ? '?ping=1' : '')).then(function (h) {
+    if (!h || !h.ok) return;
+    S.health = h; renderLive();
+    if (S.tab === 'health') renderHealth();
+    var ae = document.activeElement;
+    if (S.prof && !(ae && ae.closest && ae.closest('#addonList'))) renderAddons();
+  }).catch(function () {});
+}
+function renderLive() {
+  var h = S.health, el = $('#live'); if (!h) return;
+  var on = h.addons.filter(function (a) { return a.on; });
+  var bad = on.filter(function (a) { return a.status === 'down' || a.status === 'failing'; }).length;
+  var good = on.filter(function (a) { return a.status === 'working' || a.status === 'slow'; }).length;
+  var cls = 'g', txt;
+  if (!on.length) { cls = 'y'; txt = 'No addons on'; }
+  else if (bad && !good) { cls = 'r'; txt = bad === on.length ? 'Addons down' : plural(bad, 'addon') + ' down'; }
+  else if (bad) { cls = 'y'; txt = plural(bad, 'addon') + ' having trouble'; }
+  else txt = good ? 'Live · ' + good + '/' + on.length + ' working' : 'Live · ' + plural(on.length, 'addon') + ' ready';
+  el.className = 'pill ' + cls; el.innerHTML = '<span class="dot"></span>' + esc(txt);
+}
+var HST = { working: ['g', 'Working'], slow: ['y', 'Slow'], failing: ['y', 'Last try failed'], down: ['r', 'Down'], unknown: ['n', 'Not used yet'], off: ['n', 'Off'] };
+var HOSTST = { good: ['g', 'Good'], mixed: ['y', 'Mixed'], slow: ['y', 'Slow'], failing: ['r', 'Failing'] };
+function hpill(k, map) { var p = (map || HST)[k] || ['n', k]; return '<span class="pill ' + p[0] + '"><span class="dot"></span>' + p[1] + '</span>'; }
+function renderHealth() {
+  var h = S.health;
+  if (!h) { $('#hTiles').innerHTML = '<div class="loading" style="margin:0"><div class="spin"></div>Loading…</div>'; return; }
+  var on = h.addons.filter(function (a) { return a.on; });
+  var good = on.filter(function (a) { return a.status === 'working' || a.status === 'slow'; }).length, avg = 0, n = 0, ok = 0, all = 0;
+  on.forEach(function (a) { if (a.avgMs) { avg += a.avgMs; n++; } });
+  h.hosts.forEach(function (x) { ok += x.ok; all += x.ok + x.fail + x.slow; });
+  $('#hTiles').innerHTML = '<div class="stat"><b>' + good + ' / ' + on.length + '</b><span>addons working</span></div>' +
+    '<div class="stat"><b>' + (n ? fmtMs(avg / n) : '—') + '</b><span>average addon answer</span></div>' +
+    '<div class="stat"><b>' + (all ? Math.round(ok / all * 100) + '%' : '—') + '</b><span>tested links that started</span></div>' +
+    '<div class="stat"><b>' + (h.storage ? 'Live sync' : 'Link mode') + '</b><span>' + (h.storage ? 'changes apply by themselves' : 'changes need a new link') + '</span></div>';
+  $('#hNote').textContent = 'While you watch, results older than ' + dur(h.fresh * 1000) + ' are refreshed from your addons in the background, so new links show up by themselves. Server running for ' + dur(Date.now() - h.upSince) + ' · updated ' + new Date(h.now).toLocaleTimeString() + '.';
+  $('#hAddons').innerHTML = h.addons.length ? '<table><tr><th>Addon</th><th>Status</th><th>Ping</th><th>Avg answer</th><th>Last results</th><th>OK / Fail</th><th>Note</th></tr>' + h.addons.map(function (a) {
+    return '<tr><td><b>' + esc(a.name) + '</b></td><td>' + hpill(a.status) + '</td><td>' + (a.pingMs ? fmtMs(a.pingMs) : '—') + '</td><td>' + (a.avgMs ? fmtMs(a.avgMs) : '—') + '</td><td>' + (a.lastCount != null ? a.lastCount + ' streams' : '—') + '</td><td>' + a.ok + ' / ' + a.fail + '</td><td class="sub" style="color:#ff9fb2">' + esc(a.lastErr || (a.pausedMin ? 'paused for ' + a.pausedMin + ' min' : '')) + '</td></tr>';
+  }).join('') + '</table>' : '<div class="empty">No addons.</div>';
+  $('#hHosts').innerHTML = h.hosts.length ? '<table><tr><th>Host</th><th>Status</th><th>Working</th><th>Dead</th><th>Slow</th><th>Avg start</th></tr>' + h.hosts.map(function (x) {
+    return '<tr><td>' + esc(x.host) + '</td><td>' + hpill(x.status, HOSTST) + '</td><td>' + x.ok + '</td><td>' + x.fail + '</td><td>' + x.slow + '</td><td>' + (x.avgMs ? fmtMs(x.avgMs) : '—') + '</td></tr>';
+  }).join('') + '</table>' : '<div class="empty">No links tested yet. Open a movie in Stremio, or use “Try it”.</div>';
+  $('#hRecent').innerHTML = h.recent.length ? '<table><tr><th>When</th><th>Title</th><th>Found</th><th>Shown</th><th>🆕</th><th>Time</th><th>Removed (top reasons)</th></tr>' + h.recent.map(function (r) {
+    var d = r.dropped || {}, top = Object.keys(d).sort(function (a, b) { return d[b] - d[a]; }).slice(0, 3).map(function (k) { return d[k] + ' ' + k; }).join(' · ');
+    return '<tr><td style="white-space:nowrap">' + ago(r.at) + '</td><td><b>' + esc(r.title) + '</b><div class="sub">' + esc(r.type + ' · ' + r.id) + (r.fresh ? ' · background refresh' : '') + '</div></td><td>' + r.total + '</td><td><b>' + r.shown + '</b> <span class="sub">(' + r.tested + ' ✅)</span></td><td>' + (r.newCount || '—') + '</td><td>' + fmtMs(r.ms) + '</td><td class="sub">' + esc(top) + '</td></tr>';
+  }).join('') + '</table>' : '<div class="empty">Nothing yet.</div>';
+}
+
+/* ---------- install ---------- */
+function installUrl() { return B.base + '/' + B.key + (S.token ? '/' + S.token : '') + '/manifest.json'; }
+function renderInstall() {
+  var u = installUrl();
+  $('#instLink').textContent = u;
+  $('#instApp').href = u.replace(/^https?:\/\//, 'stremio://');
+  $('#instWeb').href = 'https://web.stremio.com/#/addons?addon=' + encodeURIComponent(u);
+  var m = $('#modeCard');
+  if (S.storage) m.innerHTML = '<h2>Live sync <span class="pill g"><span class="dot"></span>On</span></h2><p class="lead" style="margin:6px 0 0">Install once. Everything you save here (new addons, switched-off addons, settings) reaches Stremio by itself within about a minute. No reinstalling.</p>';
+  else m.innerHTML = '<h2>Link mode <span class="pill y">no storage connected</span></h2><p class="lead" style="margin:6px 0 10px">Your addon list is stored inside the install link (encrypted, only your server can read it). After you save changes, <b>remove the old Fast Combo in Stremio and install the new link</b>.</p>' +
+    (B.onCF ? '<details open><summary>Turn on live sync (free, about 2 minutes) so you never need to reinstall</summary><ol class="steps"><li>Cloudflare dashboard → <b>Storage &amp; Databases</b> → <b>KV</b> → <b>Create</b> a namespace called <code>fastcombo</code>.</li><li><b>Workers &amp; Pages</b> → your worker → <b>Settings</b> → <b>Bindings</b> → <b>Add</b> → <b>KV namespace</b>. Variable name <code>FC_KV</code>, namespace <code>fastcombo</code> → <b>Deploy</b>.</li><li>Reload this page and press <b>Save changes</b> once. Then install the plain link one last time.</li></ol></details>'
+      : '<p class="hint">Tip: with server.js, live sync is on automatically (saved in data/kv.json).</p>');
+}
+$('#instCopy').addEventListener('click', function () { copy(installUrl(), 'Install link copied'); });
+
+/* ---------- start ---------- */
+if (PASS) load(); else showLogin('');
+})();
+</script>
+</body>
+</html>

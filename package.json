@@ -1,0 +1,10 @@
+{
+  "name": "fast-combo-stremio",
+  "version": "1.0.0",
+  "description": "One Stremio addon that merges your addons and keeps only working, fast 1080p/4K streams",
+  "type": "module",
+  "main": "server.js",
+  "scripts": { "start": "node server.js" },
+  "engines": { "node": ">=18" },
+  "license": "MIT"
+}

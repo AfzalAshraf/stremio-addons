@@ -1,0 +1,13 @@
+# your data: addon list, "new link" memory, generated keys + password
+data/
+.env
+*.env.local
+# local-only files (never part of the public repo)
+private/
+research/
+screens/
+.access_key
+.admin_password
+.secret
+*.tar.gz
+node_modules/
