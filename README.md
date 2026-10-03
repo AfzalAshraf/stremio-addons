@@ -266,7 +266,7 @@ Everything is optional. Set these as environment variables: in `/etc/fastcombo/f
 | `FC_MAX_PROBES`, `FC_PROBE_CONCURRENCY`, `FC_PROBE_TIMEOUT_MS` | Link testing |
 | `PORT` / `HOST` | Where `server.js` listens (default `7000` on `0.0.0.0`; the VPS installer uses `127.0.0.1` behind Caddy) |
 | `FC_DATA_FILE` / `FC_NO_STORAGE=1` | `server.js` only: where to save data / turn live sync off |
-| `FC_PRIVATE_HOST` | A private address where `/` opens the control panel **without a password**. **Never set it to a public address.** |
+| `FC_PRIVATE_HOST` | A private LAN address (default `stremioaddon.lan`) where `/` opens the control panel **without a password**. **Never set it to a public address.** |
 
 ## 🩺 Troubleshooting
 

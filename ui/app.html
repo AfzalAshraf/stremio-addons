@@ -275,8 +275,19 @@ function onCount() { return S.prof ? S.prof.addons.filter(function (a) { return 
 function toast(msg, kind) { var t = $('#toast'); t.textContent = msg; t.className = 'toast show ' + (kind || ''); clearTimeout(toast.t); toast.t = setTimeout(function () { t.className = 'toast ' + (kind || ''); }, 3800); }
 function copy(text, label) {
   var done = function () { toast('📋 ' + (label || 'Copied')); };
-  if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(text).then(done, function () { window.prompt('Copy this:', text); });
-  else window.prompt('Copy this:', text);
+  var fb = function () {
+    try {
+      var ta = document.createElement('textarea');
+      ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      var ok = document.execCommand && document.execCommand('copy');
+      document.body.removeChild(ta);
+      if (ok) { done(); return; }
+    } catch (e) {}
+    window.prompt('Copy this:', text);
+  };
+  if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(text).then(done, fb);
+  else fb();
 }
 
 /* ---------- server ---------- */

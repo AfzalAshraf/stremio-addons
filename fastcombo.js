@@ -67,6 +67,8 @@ const CONFIG = {
   NEW_HOURS: 24,                  // a link counts as 🆕 for this long after it first appeared
   MAX_ADDONS: 15,                 // max addons in the list (Cloudflare free plan; Node/VPS default: 50 via FC_MAX_ADDONS)
   MAX_STREAMS_PER_ADDON: 250,     // read at most this many streams from one addon
+  // Private LAN hostname where "/" opens the control panel directly.
+  PRIVATE_HOST: "stremioaddon.lan",
   // Encrypts your addon list inside links. "" = FC_SECRET / automatic (Node) / derived from the password.
   SECRET: "",
 };
@@ -99,7 +101,7 @@ function applyEnv(env) {
   // Address people/Stremio use to reach the addon (only needed behind a proxy/tunnel)
   if (env.FC_PUBLIC_URL) RT.PUBLIC_URL = String(env.FC_PUBLIC_URL).replace(/\/+$/, "");
   // Private address (or its ending) where "/" may open the settings page directly. Never your public address!
-  if (env.FC_PRIVATE_HOST) RT.PRIVATE_HOST = String(env.FC_PRIVATE_HOST).toLowerCase().replace(/^\./, "");
+  if (env.FC_PRIVATE_HOST !== undefined) RT.PRIVATE_HOST = String(env.FC_PRIVATE_HOST).toLowerCase().replace(/^\./, "");
   if (env.FC_UPSTREAMS) {
     const list = String(env.FC_UPSTREAMS).split(/[\s,]+/).filter((u) => /^https?:\/\//.test(u));
     if (list.length) RT.UPSTREAMS = list.map((url, i) => ({ name: `Addon ${i + 1}`, url }));
@@ -1891,8 +1893,19 @@ function onCount() { return S.prof ? S.prof.addons.filter(function (a) { return 
 function toast(msg, kind) { var t = $('#toast'); t.textContent = msg; t.className = 'toast show ' + (kind || ''); clearTimeout(toast.t); toast.t = setTimeout(function () { t.className = 'toast ' + (kind || ''); }, 3800); }
 function copy(text, label) {
   var done = function () { toast('📋 ' + (label || 'Copied')); };
-  if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(text).then(done, function () { window.prompt('Copy this:', text); });
-  else window.prompt('Copy this:', text);
+  var fb = function () {
+    try {
+      var ta = document.createElement('textarea');
+      ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      var ok = document.execCommand && document.execCommand('copy');
+      document.body.removeChild(ta);
+      if (ok) { done(); return; }
+    } catch (e) {}
+    window.prompt('Copy this:', text);
+  };
+  if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(text).then(done, fb);
+  else fb();
 }
 
 /* ---------- server ---------- */
@@ -2325,12 +2338,23 @@ function appPage(boot) {
 const ROUTES = new Set(["manifest.json", "configure", "status", "stream", "catalog", "meta", "subtitles", "api"]);
 function safeDecode(s) { try { return decodeURIComponent(s); } catch { return s; } }
 
+const isLanOnlyHost = (h) => /\.(lan|local|home|internal|arpa|localdomain)$/.test(h) || /^(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(h);
 function isPrivateHost(h) {
-  const p = RT.PRIVATE_HOST;
-  if (!p) return false;
-  h = h.toLowerCase();
-  if (RT.PUBLIC_URL) { try { if (new URL(RT.PUBLIC_URL).hostname.toLowerCase() === h) return false; } catch {} }
-  return h === p || h.endsWith("." + p);
+  const raw = RT.PRIVATE_HOST;
+  if (!raw) return false;
+  h = String(h || "").toLowerCase();
+  if (RT.PUBLIC_URL) {
+    try {
+      const pub = new URL(RT.PUBLIC_URL).hostname.toLowerCase();
+      if (pub === h && !isLanOnlyHost(pub)) return false;
+    } catch {}
+  }
+  for (const part of String(raw).split(/[\s,]+/)) {
+    const p = part.toLowerCase().replace(/^\./, "");
+    if (!p) continue;
+    if (h === p || h.endsWith("." + p) || (p.endsWith(".lan") && h === p.slice(0, -4))) return true;
+  }
+  return false;
 }
 async function route(request, env, ctx) {
   if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
@@ -2341,9 +2365,9 @@ async function route(request, env, ctx) {
   if (!seg.length && RT.ACCESS_KEY && RT.ADMIN_PASSWORD) return html(priv ? appPage(bootData(env, origin, "", true, "addons")) : landingPage());
   if (seg[0] === "logo.png" || seg[0] === "favicon.ico") return logo();
   if (!RT.ACCESS_KEY || !RT.ADMIN_PASSWORD) return html(setupPage(), 503);
-  if (seg[0] !== RT.ACCESS_KEY) return html(landingPage(), 404);
+  if (seg[0] !== RT.ACCESS_KEY && !priv) return html(landingPage(), 404);
 
-  let rest = seg.slice(1), token = "";
+  let rest = seg[0] === RT.ACCESS_KEY ? seg.slice(1) : seg, token = "";
   if (rest.length && !ROUTES.has(rest[0])) { token = rest[0]; rest = rest.slice(1); }
   // control panel website (the "configure" button in Stremio opens it too)
   if (!rest.length || rest[0] === "configure" || rest[0] === "status") {

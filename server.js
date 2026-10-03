@@ -80,7 +80,7 @@ function ensureSecrets() {
 const secrets = ensureSecrets();
 
 // A normal server has no Cloudflare limits → test more links in parallel, allow more addons.
-const env = { FC_PROBE_CONCURRENCY: "16", FC_MAX_PROBES: "40", FC_MAX_ADDONS: "50", ...secrets.values, ...process.env };
+const env = { FC_PROBE_CONCURRENCY: "16", FC_MAX_PROBES: "40", FC_MAX_ADDONS: "50", FC_PRIVATE_HOST: "stremioaddon.lan", ...secrets.values, ...process.env };
 if (process.env.FC_NO_STORAGE !== "1") env.FC_KV = fileKV(DATA_FILE);
 
 function readBody(req, max = 200_000) {
@@ -102,7 +102,8 @@ http
     try {
       const fwdProto = String(req.headers["x-forwarded-proto"] || "").split(",")[0].trim();
       const host = String(req.headers["x-forwarded-host"] || req.headers.host || `localhost:${PORT}`).split(",")[0].trim();
-      const isLocal = /^(localhost|127\.|0\.0\.0\.0|192\.168\.|10\.)/.test(host);
+      const h = host.replace(/:\d+$/, "").toLowerCase();
+      const isLocal = /^(localhost|127\.|0\.0\.0\.0|192\.168\.|10\.|172\.(1[6-9]|2\d|3[01])\.)/.test(h) || /\.(lan|local|home|internal|arpa|localdomain)$/.test(h);
       const proto = fwdProto || (process.env.FORCE_HTTPS === "1" || !isLocal ? "https" : "http");
       const headers = new Headers();
       for (const [k, v] of Object.entries(req.headers)) {

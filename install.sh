@@ -6,6 +6,7 @@
 #                                         then does everything (or: git clone … && sudo bash install.sh)
 #   sudo bash install.sh --domain myaddon --token YOUR-DUCKDNS-TOKEN      same, without questions
 #   sudo bash install.sh --domain addon.example.com                       your own domain instead
+#   sudo bash install.sh --lan            local network install on http://stremioaddon.lan (port 7000)
 #   sudo bash /opt/fastcombo/install.sh --update   get the newest version (keeps your settings + addons)
 #   sudo bash install.sh --no-caddy       you already run nginx/apache: skip Caddy (prints an nginx example)
 #   sudo bash install.sh --caddy          switch back to Caddy after an install with --no-caddy
@@ -84,10 +85,10 @@ trap 'die "Stopped at line $LINENO: $BASH_COMMAND
   More details: $LOG"' ERR
 trap 'die "Cancelled."' INT
 
-usage() { sed -n '2,14p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; }
+usage() { sed -n '2,15p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; }
 
 # ------------------------------------------------------------------ options
-DOMAIN_IN='' TOKEN_IN='' PORT_IN='' MODE=install YES=0 USE_CADDY=1 CADDY_FLAG=''
+DOMAIN_IN='' TOKEN_IN='' PORT_IN='' LAN_IN='' LAN_MODE=0 MODE=install YES=0 USE_CADDY=1 CADDY_FLAG=''
 need_val() { [ -n "${2:-}" ] || die "$1 needs a value (try --help)"; }
 while [ $# -gt 0 ]; do
   case $1 in
@@ -97,6 +98,10 @@ while [ $# -gt 0 ]; do
     --token=*)    TOKEN_IN=${1#*=}; shift ;;
     --port)       need_val "$1" "${2:-}"; PORT_IN=$2; shift 2 ;;
     --port=*)     PORT_IN=${1#*=}; shift ;;
+    --lan)
+      LAN_MODE=1
+      if [ -n "${2:-}" ] && [[ ${2:-} != -* ]]; then LAN_IN=$2; shift 2; else shift; fi ;;
+    --lan=*)      LAN_MODE=1; LAN_IN=${1#*=}; shift ;;
     --no-caddy)   CADDY_FLAG=0; shift ;;
     --caddy)      CADDY_FLAG=1; shift ;;
     --update)     MODE=update; YES=1; shift ;;
@@ -151,10 +156,29 @@ confirm() { # confirm "question" → yes (default) / no
   read -r -p "  $1 [Y/n] " a || true
   [[ -z $a || $a =~ ^[Yy] ]]
 }
+is_lan_domain() { [[ $1 =~ \.(lan|local|home|internal|arpa|localdomain)$ ]]; }
+normalize_lan_name() {
+  local d=${1,,}
+  d=${d//[[:space:]]/}; d=${d#http://}; d=${d#https://}; d=${d%%/*}; d=${d%%:*}; d=${d%.}
+  if [ -n "$d" ] && [[ $d != *.* ]]; then d=$d.lan; fi
+  printf '%s' "$d"
+}
+lan_ip() {
+  local ip
+  ip=$(ip -4 route get 1.1.1.1 2>/dev/null | awk '{for(i=1;i<=NF;i++) if($i=="src"){print $(i+1); exit}}' || true)
+  if [ -z "$ip" ]; then ip=$(hostname -I 2>/dev/null | awk '{print $1}' || true); fi
+  printf '%s' "$ip"
+}
 normalize_domain() {
   local d=${1,,}
   d=${d//[[:space:]]/}; d=${d#http://}; d=${d#https://}; d=${d%%/*}; d=${d%%:*}; d=${d%.}
-  if [ -n "$d" ] && [[ $d != *.* ]]; then d=$d.duckdns.org; fi
+  if [ -n "$d" ] && [[ $d != *.* ]]; then
+    if [ "${LAN_MODE:-0}" = 1 ] || { [ -z "${TOKEN_IN:-}" ] && [ "$d" = stremioaddon ]; }; then
+      d=$d.lan
+    else
+      d=$d.duckdns.org
+    fi
+  fi
   printf '%s' "$d"
 }
 valid_domain() { [[ $1 =~ ^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z][a-z0-9-]{1,62}$ ]]; }
@@ -245,7 +269,7 @@ do_uninstall() {
 if [ "$MODE" = uninstall ]; then do_uninstall; exit 0; fi
 
 # ================================================================== 1. checks
-printf '\n%s⚡ Fast Combo — VPS setup%s\n' "$B" "$N"
+printf '\n%s⚡ Fast Combo — VPS & LAN setup%s\n' "$B" "$N"
 step "Checking this server"
 echo "=== $(date) install.sh $MODE" >>"$LOG"
 command -v apt-get >/dev/null 2>&1 || die "This installer is for Ubuntu or Debian. For other Linux systems see VPS-SETUP.md (\"Other Linux\")."
@@ -259,17 +283,22 @@ ok "${PRETTY_NAME:-Linux} · $(uname -m) · $(awk '/MemTotal/ {printf "%d MB RAM
 
 OLD_URL=$(get_var "$ENV_FILE" FC_PUBLIC_URL)
 OLD_DOMAIN=${OLD_URL#https://}
+OLD_DOMAIN=${OLD_DOMAIN#http://}
 OLD_DOMAIN=${OLD_DOMAIN%%/*}
+OLD_DOMAIN=${OLD_DOMAIN%%:*}
 OLD_PORT=$(get_var "$ENV_FILE" PORT)
+OLD_LAN=$(get_var "$ENV_FILE" FC_PRIVATE_HOST)
 OLD_SUB=$(get_var "$DDNS_FILE" DUCKDNS_SUB)
 OLD_TOKEN=$(get_var "$DDNS_FILE" DUCKDNS_TOKEN)
-if [ -z "$OLD_DOMAIN" ] && [ "$MODE" = update ]; then die "Fast Combo isn't installed yet — run the installer without --update first."; fi
+if [ -z "$OLD_DOMAIN" ] && [ -z "$OLD_LAN" ] && [ "$MODE" = update ]; then die "Fast Combo isn't installed yet — run the installer without --update first."; fi
 if [ -n "$CADDY_FLAG" ]; then
   USE_CADDY=$CADDY_FLAG
 elif [ -f "$UNIT_DIR/fastcombo.service" ] && [ ! -f "$CADDY_SITE" ] && [ -n "$OLD_DOMAIN" ]; then
   USE_CADDY=0 # it was installed with --no-caddy (use --caddy to switch)
 fi
 
+LAN_SITE=$(normalize_lan_name "${LAN_IN:-${OLD_LAN:-stremioaddon.lan}}")
+if [ "$LAN_MODE" = 1 ] && [ -z "$DOMAIN_IN" ]; then DOMAIN_IN=$LAN_SITE; fi
 DOMAIN=$(normalize_domain "${DOMAIN_IN:-$OLD_DOMAIN}")
 if [ -n "$OLD_DOMAIN" ] && [ -z "$DOMAIN_IN" ]; then ok "Using your saved address: $DOMAIN"; fi
 if [ -z "$DOMAIN" ]; then
@@ -281,8 +310,15 @@ if [ -z "$DOMAIN" ]; then
   DOMAIN=$(normalize_domain "$DOMAIN_RAW")
 fi
 valid_domain "$DOMAIN" || die "\"$DOMAIN\" is not a valid web address."
+SCHEME=https
+if is_lan_domain "$DOMAIN"; then
+  LAN_MODE=1
+  LAN_SITE=$DOMAIN
+  SCHEME=http
+  if [ -z "$CADDY_FLAG" ]; then USE_CADDY=0; fi
+fi
 
-DUCK=0 SUB='' TOKEN='' IPV6_ONLY=0 PUBLIC_IP=''
+DUCK=0 SUB='' TOKEN='' IPV6_ONLY=0 PUBLIC_IP='' LAN_IP=$(lan_ip || true)
 if [[ $DOMAIN == *.duckdns.org ]]; then
   DUCK=1
   SUB=${DOMAIN%.duckdns.org}
@@ -299,7 +335,7 @@ fi
 PORT=${PORT_IN:-${OLD_PORT:-7000}}
 if ! [[ $PORT =~ ^[0-9]+$ ]] || [ "$PORT" -lt 1024 ] || [ "$PORT" -gt 65535 ]; then die "--port must be a number from 1024 to 65535."; fi
 
-if [ "$USE_CADDY" = 1 ]; then
+if [ "$USE_CADDY" = 1 ] && [ "$LAN_MODE" = 0 ]; then
   for p in 80 443; do
     users=$(port_users "$p")
     if [ -n "$users" ] && [ "$users" != caddy ]; then
@@ -314,17 +350,26 @@ users=$(port_users "$PORT" loopback)
 if [ -n "$users" ] && ! systemctl is-active --quiet fastcombo; then
   die "Port $PORT is already used by: $users — run again with another port, e.g.  sudo bash install.sh --port 7010"
 fi
-if [ "$USE_CADDY" = 1 ]; then ok "Ports 80, 443 and $PORT are available"; else ok "Port $PORT is available (Caddy skipped: you'll use your own web server)"; fi
+if [ "$LAN_MODE" = 1 ]; then
+  ok "Port $PORT is available (LAN address: http://$LAN_SITE)"
+elif [ "$USE_CADDY" = 1 ]; then
+  ok "Ports 80, 443 and $PORT are available"
+else
+  ok "Port $PORT is available (Caddy skipped: you'll use your own web server)"
+fi
 if ! command -v curl >/dev/null 2>&1; then info "Installing curl …"; apt_install curl ca-certificates; fi
 
-printf '\n  Ready to set up Fast Combo on %shttps://%s%s\n' "$B" "$DOMAIN" "$N"
+printf '\n  Ready to set up Fast Combo on %s%s://%s%s\n' "$B" "$SCHEME" "$DOMAIN" "$N"
 if [ "$MODE" = install ] && [ -z "$OLD_DOMAIN" ]; then
-  info "installs Node.js + $([ "$USE_CADDY" = 1 ] && echo "Caddy (free HTTPS)" || echo "the addon service") — takes 1–3 minutes"
+  info "installs Node.js + $([ "$LAN_MODE" = 1 ] && echo "LAN service" || { [ "$USE_CADDY" = 1 ] && echo "Caddy (free HTTPS)" || echo "the addon service"; }) — takes 1–3 minutes"
 fi
 confirm "Continue?" || die "Cancelled — nothing was installed."
 
 # ================================================================== 2. DNS
-if [ "$DUCK" = 1 ]; then
+if [ "$LAN_MODE" = 1 ]; then
+  step "Setting up $LAN_SITE on your LAN"
+  if [ -n "$LAN_IP" ]; then ok "This server's LAN IP: $LAN_IP"; fi
+elif [ "$DUCK" = 1 ]; then
   step "Pointing $DOMAIN to this server (DuckDNS)"
   resp=$(curl -4 -fsS --max-time 25 "https://www.duckdns.org/update?domains=$SUB&token=$TOKEN&ip=&verbose=true" 2>/dev/null || true)
   if [ -z "$resp" ]; then # maybe this server has no IPv4 address
@@ -410,6 +455,10 @@ gen() { # gen LENGTH [GROUP] → random letters/digits (no look-alikes such as 0
   "$NODE" -e 'const a="abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789",c=require("crypto");let t="";for(let i=0;i<+process.argv[1];i++)t+=a[c.randomInt(a.length)];const g=+process.argv[2];console.log(g?t.match(new RegExp(".{1,"+g+"}","g")).join("-"):t)' "$1" "${2:-0}"
 }
 in_code() { sed -nE "s/^[[:space:]]*$1:[[:space:]]*\"([^\"]+)\".*/\1/p" "$APP_DIR/fastcombo.js" | head -n 1 || true; }
+LISTEN_HOST=127.0.0.1
+if [ "$LAN_MODE" = 1 ] || [ "$USE_CADDY" = 0 ]; then LISTEN_HOST=0.0.0.0; fi
+PUBLIC_URL_VAL="$SCHEME://$DOMAIN"
+if [ "$LAN_MODE" = 1 ]; then PUBLIC_URL_VAL=''; fi
 install -d -m 755 "$ETC_DIR"
 if [ ! -f "$ENV_FILE" ]; then
   cat >"$ENV_FILE" <<EOF
@@ -417,9 +466,11 @@ if [ ! -f "$ENV_FILE" ]; then
 # (lines starting with # are ignored)
 
 # Public address of this addon (used in the install links)
-FC_PUBLIC_URL=https://$DOMAIN
-# Listen only on this machine; the web server in front (Caddy) adds HTTPS
-HOST=127.0.0.1
+FC_PUBLIC_URL=$PUBLIC_URL_VAL
+# Private LAN hostname where "/" opens the control panel directly
+FC_PRIVATE_HOST=$LAN_SITE
+# Where to listen (127.0.0.1 behind Caddy on a VPS, 0.0.0.0 on LAN)
+HOST=$LISTEN_HOST
 PORT=$PORT
 # Where the control panel saves your addon list and the "new link" history
 FC_DATA_FILE=$DATA_DIR/kv.json
@@ -433,8 +484,9 @@ NODE_ENV=production
 # FC_ADMIN_PASSWORD opens the control panel; change it any time (then restart).
 EOF
 else
-  set_var "$ENV_FILE" FC_PUBLIC_URL "https://$DOMAIN"
-  set_var "$ENV_FILE" HOST 127.0.0.1
+  set_var "$ENV_FILE" FC_PUBLIC_URL "$PUBLIC_URL_VAL"
+  set_var "$ENV_FILE" FC_PRIVATE_HOST "$LAN_SITE"
+  set_var "$ENV_FILE" HOST "$LISTEN_HOST"
   set_var "$ENV_FILE" PORT "$PORT"
   set_var "$ENV_FILE" FC_DATA_FILE "$DATA_DIR/kv.json"
 fi
@@ -563,27 +615,27 @@ else
   fi
 fi
 
-# ================================================================== 5. HTTPS + firewall
+# ================================================================== 5. HTTPS / LAN proxy + firewall
 open_firewall() {
   local ufw_status rules changed=0 ipt p
   if command -v ufw >/dev/null 2>&1; then
     ufw_status=$(ufw status 2>/dev/null || true)
     if [[ $ufw_status == *"Status: active"* ]]; then
-      ufw allow 80/tcp >/dev/null && ufw allow 443/tcp >/dev/null
-      ok "Firewall (ufw): ports 80 and 443 are open"
+      ufw allow 80/tcp >/dev/null && ufw allow 443/tcp >/dev/null && ufw allow "$PORT/tcp" >/dev/null
+      ok "Firewall (ufw): ports 80, 443 and $PORT are open"
       return 0
     fi
   fi
   if command -v firewall-cmd >/dev/null 2>&1 && firewall-cmd --state >/dev/null 2>&1; then
-    firewall-cmd -q --permanent --add-service=http --add-service=https && firewall-cmd -q --reload
-    ok "Firewall (firewalld): ports 80 and 443 are open"
+    firewall-cmd -q --permanent --add-service=http --add-service=https --add-port="$PORT/tcp" && firewall-cmd -q --reload
+    ok "Firewall (firewalld): ports 80, 443 and $PORT are open"
     return 0
   fi
   for ipt in iptables ip6tables; do
     command -v "$ipt" >/dev/null 2>&1 || continue
     rules=$("$ipt" -S INPUT 2>/dev/null || true)
     if grep -qE -- '^-P INPUT DROP|-j (REJECT|DROP)' <<<"$rules"; then
-      for p in 443 80; do
+      for p in 443 80 "$PORT"; do
         if ! "$ipt" -C INPUT -p tcp --dport "$p" -j ACCEPT 2>/dev/null; then
           "$ipt" -I INPUT 1 -p tcp --dport "$p" -j ACCEPT && changed=1
         fi
@@ -592,20 +644,22 @@ open_firewall() {
   done
   if [ "$changed" = 1 ]; then
     if command -v netfilter-persistent >/dev/null 2>&1 && netfilter-persistent save >/dev/null 2>&1; then
-      ok "Firewall (iptables): opened ports 80 and 443 (saved for reboots)"
+      ok "Firewall (iptables): opened ports 80, 443 and $PORT (saved for reboots)"
     else
-      warn "Firewall (iptables): opened ports 80 and 443 until the next reboot — run: sudo apt install iptables-persistent"
+      warn "Firewall (iptables): opened ports 80, 443 and $PORT until the next reboot — run: sudo apt install iptables-persistent"
     fi
     return 0
   fi
-  ok "This server's own firewall isn't blocking ports 80/443"
+  ok "This server's own firewall isn't blocking ports 80/443/$PORT"
 }
 
 if [ "$USE_CADDY" = 1 ]; then
-  step "Setting up HTTPS (Caddy) and the firewall"
+  step "Setting up $([ "$LAN_MODE" = 1 ] && echo "Caddy (LAN HTTP)" || echo "HTTPS (Caddy)") and the firewall"
+  CADDY_HOST=$DOMAIN
+  if [ "$LAN_MODE" = 1 ]; then CADDY_HOST="http://$DOMAIN"; fi
   cat >"$CADDY_SITE" <<EOF
 # ⚡ Fast Combo — written by install.sh (running the installer again rewrites this file)
-$DOMAIN {
+$CADDY_HOST {
 	encode zstd gzip
 	reverse_proxy 127.0.0.1:$PORT
 }
@@ -625,7 +679,9 @@ EOF
   fi
   systemctl enable caddy >/dev/null 2>&1 || true
   if systemctl is-active --quiet caddy; then systemctl reload caddy >/dev/null 2>&1 || systemctl restart caddy; else systemctl restart caddy; fi
-  ok "Caddy serves https://$DOMAIN (the certificate renews automatically)"
+  ok "Caddy serves $SCHEME://$DOMAIN$([ "$LAN_MODE" = 0 ] && echo " (the certificate renews automatically)")"
+  open_firewall
+elif [ "$LAN_MODE" = 1 ]; then
   open_firewall
 else
   step "Web server (skipped: --no-caddy)"
@@ -636,47 +692,69 @@ fi
 step "Final checks"
 dns_ok() { [ -z "$PUBLIC_IP" ] && return 0; [[ " $(getent ahosts "$DOMAIN" 2>/dev/null | awk '{print $1}' | sort -u | paste -sd' ' - || true) " == *" $PUBLIC_IP "* ]]; }
 https_ok() { curl -fsS -o /dev/null --max-time 8 --resolve "$DOMAIN:443:127.0.0.1" "https://$DOMAIN/$KEY/manifest.json" 2>/dev/null; }
-DNS_GOOD=1 HTTPS_GOOD=1
-if wait_until "$DNS_WAIT" "waiting for $DOMAIN to point here (DNS)" dns_ok; then
-  ok "$DOMAIN points to this server"
-else
-  DNS_GOOD=0
-  now_ips=$(getent ahosts "$DOMAIN" 2>/dev/null | awk '{print $1}' | sort -u | paste -sd' ' - || true)
-  if [ -n "$now_ips" ]; then
-    warn "$DOMAIN doesn't point to this server yet: it points to $now_ips, this server is $PUBLIC_IP"
+lan_proxy_ok() { curl -fsS -o /dev/null --max-time 5 -H "Host: $LAN_SITE" "http://127.0.0.1/$KEY/manifest.json" 2>/dev/null; }
+DNS_GOOD=1 HTTPS_GOOD=1 LAN_PROXY_GOOD=0
+if [ "$LAN_MODE" = 1 ]; then
+  if lan_proxy_ok; then
+    LAN_PROXY_GOOD=1
+    ok "http://$LAN_SITE works on port 80"
   else
-    warn "$DOMAIN doesn't exist in DNS yet (it should point to $PUBLIC_IP)"
+    ok "Fast Combo is listening on port $PORT"
   fi
-fi
-if [ "$USE_CADDY" = 1 ]; then
-  if wait_until "$HTTPS_WAIT" "getting the free HTTPS certificate" https_ok; then
-    ok "HTTPS works: https://$DOMAIN"
+else
+  if wait_until "$DNS_WAIT" "waiting for $DOMAIN to point here (DNS)" dns_ok; then
+    ok "$DOMAIN points to this server"
   else
-    HTTPS_GOOD=0
-    warn "HTTPS isn't working yet."
-    if [ "$DNS_GOOD" = 0 ]; then
-      info "Your address must point to this server first (see the DNS line above)."
+    DNS_GOOD=0
+    now_ips=$(getent ahosts "$DOMAIN" 2>/dev/null | awk '{print $1}' | sort -u | paste -sd' ' - || true)
+    if [ -n "$now_ips" ]; then
+      warn "$DOMAIN doesn't point to this server yet: it points to $now_ips, this server is $PUBLIC_IP"
     else
-      info "Most likely ports 80 and 443 are closed in your VPS provider's firewall (on their website):"
-      info "Oracle Cloud: Security List · AWS: Security Group / Lightsail Networking · Google Cloud: VPC firewall · Azure: NSG"
-      info "Open TCP 80 and 443 there. Caddy keeps retrying by itself, so it starts working a few minutes later."
+      warn "$DOMAIN doesn't exist in DNS yet (it should point to $PUBLIC_IP)"
     fi
-    err=$(caddy_error)
-    if [ -n "$err" ]; then info "Caddy says: ${err:0:220}"; fi
+  fi
+  if [ "$USE_CADDY" = 1 ]; then
+    if wait_until "$HTTPS_WAIT" "getting the free HTTPS certificate" https_ok; then
+      ok "HTTPS works: https://$DOMAIN"
+    else
+      HTTPS_GOOD=0
+      warn "HTTPS isn't working yet."
+      if [ "$DNS_GOOD" = 0 ]; then
+        info "Your address must point to this server first (see the DNS line above)."
+      else
+        info "Most likely ports 80 and 443 are closed in your VPS provider's firewall (on their website):"
+        info "Oracle Cloud: Security List · AWS: Security Group / Lightsail Networking · Google Cloud: VPC firewall · Azure: NSG"
+        info "Open TCP 80 and 443 there. Caddy keeps retrying by itself, so it starts working a few minutes later."
+      fi
+      err=$(caddy_error)
+      if [ -n "$err" ]; then info "Caddy says: ${err:0:220}"; fi
+    fi
   fi
 fi
 
 printf '\n'
-if [ "$USE_CADDY" = 0 ]; then
-  printf '%s%sFast Combo is running — point your web server to it (nginx example at the bottom), then these links work:%s\n\n' "$G" "$B" "$N"
-elif [ "$HTTPS_GOOD" = 1 ] && [ "$DNS_GOOD" = 1 ]; then
-  printf '%s%s✅ Fast Combo is ready!%s\n\n' "$G" "$B" "$N"
+if [ "$LAN_MODE" = 1 ]; then
+  printf '%s%s✅ Fast Combo is ready on your LAN!%s\n\n' "$G" "$B" "$N"
+  printf '  Control panel   %shttp://%s:%s/%s/configure%s\n' "$B" "${LAN_IP:-$LAN_SITE}" "$PORT" "$KEY" "$N"
+  printf '  LAN address     http://%s/\n' "$LAN_SITE"
+  printf '  Password        %s%s%s   (not needed on http://%s/)\n' "$B" "$PASS" "$N" "$LAN_SITE"
+  if [ "$LAN_PROXY_GOOD" = 1 ]; then
+    printf '  Addon link      http://%s/%s/manifest.json\n\n' "$LAN_SITE" "$KEY"
+  else
+    printf '  Addon link      http://%s:%s/%s/manifest.json\n\n' "${LAN_IP:-$LAN_SITE}" "$PORT" "$KEY"
+  fi
 else
-  printf '%s%sFast Combo is installed — finish the step marked ! above, then these links work:%s\n\n' "$Y" "$B" "$N"
+  if [ "$USE_CADDY" = 0 ]; then
+    printf '%s%sFast Combo is running — point your web server to it (nginx example at the bottom), then these links work:%s\n\n' "$G" "$B" "$N"
+  elif [ "$HTTPS_GOOD" = 1 ] && [ "$DNS_GOOD" = 1 ]; then
+    printf '%s%s✅ Fast Combo is ready!%s\n\n' "$G" "$B" "$N"
+  else
+    printf '%s%sFast Combo is installed — finish the step marked ! above, then these links work:%s\n\n' "$Y" "$B" "$N"
+  fi
+  printf '  Control panel   %shttps://%s/%s/configure%s\n' "$B" "$DOMAIN" "$KEY" "$N"
+  printf '  Password        %s%s%s\n' "$B" "$PASS" "$N"
+  printf '  Addon link      https://%s/%s/manifest.json\n\n' "$DOMAIN" "$KEY"
 fi
-printf '  Control panel   %shttps://%s/%s/configure%s\n' "$B" "$DOMAIN" "$KEY" "$N"
-printf '  Password        %s%s%s\n' "$B" "$PASS" "$N"
-printf '  Addon link      https://%s/%s/manifest.json\n\n' "$DOMAIN" "$KEY"
 printf '  Next: open the control panel, add your addons (➕), then 📲 Install in Stremio.\n\n'
 printf '  %sHandy commands%s\n' "$B" "$N"
 printf '    sudo systemctl status fastcombo     is it running?\n'
@@ -685,7 +763,7 @@ printf '    sudo systemctl restart fastcombo    restart it\n'
 printf '    sudo bash %s/install.sh --update     get the newest version (keeps settings + addons)\n' "$APP_DIR"
 printf '    sudo bash %s/install.sh --uninstall  remove it\n' "$APP_DIR"
 printf '    sudo cat %s                password, key and other settings\n\n' "$ENV_FILE"
-if [ "$USE_CADDY" = 0 ]; then
+if [ "$USE_CADDY" = 0 ] && [ "$LAN_MODE" = 0 ]; then
   printf '  %snginx example%s (then: sudo certbot --nginx -d %s)\n' "$B" "$N" "$DOMAIN"
   printf '    server {\n      server_name %s;\n      location / {\n        proxy_pass http://127.0.0.1:%s;\n' "$DOMAIN" "$PORT"
   # shellcheck disable=SC2016  # $host/$scheme are nginx variables, printed as-is

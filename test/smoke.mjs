@@ -164,6 +164,21 @@ check("setting \"1080p only\" removes the 4K file", only1080.length > 0 && !only
   }
 }
 
+// ------------------------------------------------------------ 9. LAN site (stremioaddon.lan)
+{
+  const app5 = await load();
+  const env5 = { FC_ACCESS_KEY: KEY, FC_ADMIN_PASSWORD: PW, FC_SECRET: "w".repeat(32), FC_PUBLIC_URL: "http://stremioaddon.lan", FC_KV: memKV() };
+  const lanHome = await app5.fetch(new Request("http://stremioaddon.lan/"), env5, ctx);
+  const lanText = await lanHome.text();
+  check("http://stremioaddon.lan/ opens the control panel directly on LAN", lanHome.status === 200 && lanText.includes(`"auto":"${PW}"`));
+  const lanManifest = await app5.fetch(new Request("http://stremioaddon.lan/manifest.json"), env5, ctx);
+  const lanManifestData = await lanManifest.json();
+  check("http://stremioaddon.lan/manifest.json serves the addon manifest on LAN", lanManifest.status === 200 && lanManifestData.version === "2.0.0");
+  const pubHome = await app5.fetch(new Request("https://public.example.com/"), env5, ctx);
+  const pubText = await pubHome.text();
+  check("public address still keeps / locked", pubHome.status === 200 && !pubText.includes(PW));
+}
+
 await Promise.allSettled(pending);
 server.close();
 console.log(fails ? `\n${fails} check(s) failed` : "\nAll checks passed ✅");
