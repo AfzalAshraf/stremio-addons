@@ -128,19 +128,19 @@ Click **Deploy**. ✍️ **Write both values down.**
 
 **Step 4: turn on live sync** (recommended: changes reach Stremio without reinstalling)
 
-1. **Storage & Databases** → **KV** → **Create**. Name it:
+1. Open your Worker **fast-combo** → **Bindings** (a tab at the top, or under **Settings**) → **Add binding**.
+2. Choose **KV namespace**. ⚠️ Not *D1 database*: if you see a **Location hint** box, you picked the wrong one, so close it and pick **KV namespace**.
+3. Variable name:
+   ```
+   FC_KV
+   ```
+4. KV namespace: pick **fastcombo** from the list. Not in the list? Type this and choose the option marked **new**, and Cloudflare creates it for you:
    ```
    fastcombo
    ```
-   Click **Create**. Cloudflare now shows example code. **Ignore it.**
-2. **Workers & Pages** → **fast-combo** → **Settings** → **Bindings** → **+ Add** → **KV namespace**.
-   - Variable name:
-     ```
-     FC_KV
-     ```
-   - KV namespace: choose **fastcombo**
+5. Leave **Previews** as it is and click **Add binding**. That's the last click: it saves and goes live straight away. There's no separate Deploy button.
 
-   Click **Add binding** (or **Deploy**). Already used another variable name, such as `KV`? That works too.
+Cloudflare may then say *"Update your Wrangler configuration with these changes to keep deployments in sync."* **Ignore it.** It's for people who deploy from their own computer, so there's nothing to update. Ignore any example code too. Already used another variable name, such as `KV`? That works too.
 
 **Step 5: open your control panel**
 ```
@@ -279,6 +279,7 @@ Everything is optional. Set these as environment variables: in `/etc/fastcombo/f
 | Forgot the password / key | VPS: `sudo cat /etc/fastcombo/fastcombo.env` · Node/Docker: `data/secrets.json` (Docker: `docker exec fastcombo cat /app/data/secrets.json`) · Cloudflare: set new values in the Worker's variables. |
 | Cloudflare page says **"one step left"** | Your key and password aren't set yet. Do [Option B, step 3](#️-cloudflare-workers-free-no-server), or redeploy with the button and fill in both boxes. |
 | Cloudflare: the 📲 Install tab says **"Turn on live sync"** | Add the KV storage: [Option B, step 4](#️-cloudflare-workers-free-no-server). Any variable name works. Then press **Save changes** once and install one last time. |
+| Cloudflare says *"Update your Wrangler configuration…"* | Ignore it. It's only for people who deploy with a config file from their computer. Nothing is wrong. |
 | "Wrong password" although it's right | The browser may have saved an old one. Retype it. |
 | "Error 1102" on Cloudflare (rare) | The free plan allows 10 ms of processing per request. Reopen the title; if it happens often, turn off **Test links** or use a VPS. |
 | Some 4K files show purple/green | Turn on **Hide Dolby-Vision-only**. |
