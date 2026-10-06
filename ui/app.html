@@ -184,6 +184,7 @@ details summary{cursor:pointer;color:#b9c3e6;font-size:13.5px;margin-top:12px;fo
   <main id="app" class="hidden">
     <nav class="tabs" id="tabs">
       <button type="button" data-tab="addons"><span class="ti">🧩</span>Addons</button>
+      <button type="button" data-tab="ai"><span class="ti">🤖</span>AI best</button>
       <button type="button" data-tab="settings"><span class="ti">⚙️</span>Settings</button>
       <button type="button" data-tab="try"><span class="ti">🔎</span>Try it</button>
       <button type="button" data-tab="health"><span class="ti">🩺</span>Health</button>
@@ -204,6 +205,19 @@ details summary{cursor:pointer;color:#b9c3e6;font-size:13.5px;margin-top:12px;fo
         <div class="card-h"><h2>Your addons</h2><span class="mut small" id="addonCount"></span></div>
         <p class="lead">All switched-on addons are asked at the same time. Dead or slow ones are skipped automatically and retried later. <b>Priority</b> decides which addon's link wins when two have the same file.</p>
         <div id="addonList"></div>
+      </div>
+    </section>
+
+    <section data-pane="ai" class="hidden">
+      <div class="card">
+        <h2>🤖 AI: find the best addon</h2>
+        <p class="lead">Searches Stremio's public community catalog for scrapers and ranks them by installs — answers in about a second. Tick <b>live-test</b> to also verify the top ones have real 1080p / 4K + working links (more accurate, ~10–25 s). <b>Nothing is added until you press Add.</b></p>
+        <form id="aiForm" class="row" style="align-items:flex-end">
+          <div style="flex:1;min-width:0"><label class="lbl">What do you want?</label><input id="aiQ" class="field" placeholder="e.g. 4k, anime, torbox, subtitles — or leave empty for the best overall" autocomplete="off" autocapitalize="off" spellcheck="false"></div>
+          <button class="btn pri" id="aiBtn" type="submit">🔎 Find the best</button>
+        </form>
+        <label class="row small mut" style="gap:6px;margin-top:12px"><input type="checkbox" id="aiTest"> Live-test the top candidates for accuracy (off by default — adds ~10–25 s)</label>
+        <div id="aiOut"></div>
       </div>
     </section>
 
@@ -684,6 +698,68 @@ function renderInstall() {
       : '<p class="hint">Tip: with server.js, live sync is on automatically (saved in data/kv.json).</p>');
 }
 $('#instCopy').addEventListener('click', function () { copy(installUrl(), 'Install link copied'); });
+
+/* ---------- AI finder ---------- */
+var aiItems = [], aiResult = null;
+$('#aiForm').addEventListener('submit', function (e) { e.preventDefault(); aiFind(); });
+function aiFind() {
+  var q = $('#aiQ').value.trim(), test = $('#aiTest').checked, out = $('#aiOut'), btn = $('#aiBtn');
+  btn.disabled = true; btn.innerHTML = '<span class="spin"></span>';
+  out.innerHTML = '<div class="loading"><div class="spin"></div><div>' + (test ? 'Searching the community catalog and live-testing the top ones… usually 10–25 s' : 'Searching the community catalog… a couple of seconds') + '</div></div>';
+  api('ai?q=' + encodeURIComponent(q) + (test ? '&test=1' : '')).then(function (r) { aiResult = r; aiItems = (r && r.candidates) || []; paintAi(); })
+    .catch(function (e) { if (!e.login) out.innerHTML = '<div class="err">❌ ' + esc(e.message) + '</div>'; })
+    .then(function () { btn.disabled = false; btn.textContent = '🔎 Find the best'; });
+}
+function aiBits(c) {
+  var b = [];
+  if (c.downloads) b.push('📥 ' + (c.downloads >= 1000 ? Math.round(c.downloads / 1000) + 'k' : c.downloads) + ' installs');
+  if (c.rating) b.push('⭐ ' + c.rating.toFixed(1));
+  if (c.tested && c.live) {
+    if (c.live.uhd) b.push('✨ ' + c.live.uhd + ' in 4K');
+    if (c.live.hd) b.push('🎞 ' + c.live.hd + ' in 1080p');
+    if (c.live.linksTested) b.push('🔗 ' + c.live.linksOk + '/' + c.live.linksTested + ' start');
+  }
+  return b;
+}
+function aiRow(c, i) {
+  var best = i === 0, bits = aiBits(c), already = S.prof.addons.some(function (a) { return a.id === c.aid; });
+  var why = (c.why || []).slice(0, 4).map(esc).join(' · ');
+  return '<div class="addon" style="' + (best ? 'border-color:rgba(124,108,255,.75);box-shadow:0 0 0 2px rgba(124,108,255,.35)' : '') + '">' +
+    (best ? '<div style="flex-basis:100%"><span class="pill b"><span class="dot"></span>🏆 Best pick</span>' + (c.reason ? '<span class="mut small" style="margin-left:8px">' + esc(c.reason) + '</span>' : '') + '</div>' : '') +
+    '<img class="alogo" alt="" src="' + esc(c.logo || '/logo.png') + '" onerror="this.onerror=null;this.src=\'/logo.png\'">' +
+    '<div class="ainfo"><div class="aname"><span>' + (i + 1) + '. ' + esc(c.name) + '</span></div>' +
+    (bits.length ? '<div class="astats">' + bits.map(function (x) { return '<span>' + esc(x) + '</span>'; }).join('') + '</div>' : '') +
+    (why ? '<div class="aurl" style="white-space:normal;max-width:none;overflow:visible">' + why + '</div>' : '') +
+    (c.live && c.live.error ? '<div class="aerr">⚠ ' + esc(c.live.error) + '</div>' : '') + '</div>' +
+    '<div class="actl">' + (already ? '<span class="pill n">✓ Added</span>' : '<button type="button" class="btn ok sm" data-ai="' + i + '">＋ Add</button>') + '</div></div>';
+}
+function paintAi() {
+  var out = $('#aiOut'), r = aiResult;
+  if (!r) return;
+  if (!r.ok) { out.innerHTML = '<div class="err">❌ ' + esc(r.error || 'Something went wrong') + '</div>'; return; }
+  if (!aiItems.length) { out.innerHTML = '<div class="empty">No addons matched. Try a different word, or leave the box empty for the best overall.</div>'; return; }
+  var eng = r.llm ? '<span class="pill b">🧠 ' + esc(r.llm.model) + '</span>' : '<span class="pill n">⚙️ auto-scored</span>';
+  var h = '<div class="sum" style="margin:8px 0 2px">' + eng + '<span class="mut small">from ' + esc(r.source) + (r.tested ? ' · top ones live-tested' : '') + ' · ' + r.count + ' candidates</span></div>';
+  h += '<div class="btns" style="margin:12px 0 2px"><button type="button" class="btn pri" id="aiBest">＋ Add the best' + (aiItems[0] ? ': ' + esc(aiItems[0].name) : '') + '</button>';
+  var sug = r.suggested || [];
+  if (sug.length > 1) h += '<button type="button" class="btn" id="aiTop">＋ Add top ' + sug.length + '</button>';
+  h += '</div>';
+  h += aiItems.map(aiRow).join('');
+  out.innerHTML = h;
+  var b = $('#aiBest'); if (b) b.addEventListener('click', function () { aiAdd(0); });
+  var t = $('#aiTop'); if (t) t.addEventListener('click', function () { (r.suggested || []).forEach(function (u) { for (var k = 0; k < aiItems.length; k++) if (aiItems[k].url === u) { aiAdd(k); break; } }); });
+  $$('#aiOut [data-ai]').forEach(function (el) { el.addEventListener('click', function () { aiAdd(+el.getAttribute('data-ai')); }); });
+}
+function aiAdd(i) {
+  var c = aiItems[i]; if (!c) return;
+  if (S.prof.addons.some(function (a) { return a.id === c.aid; })) { toast('Already in your list'); return; }
+  if (S.prof.addons.length >= B.maxAddons) { toast('Your addon list is full (' + B.maxAddons + ')', 'bad'); return; }
+  S.prof.addons.push({ id: c.aid, name: c.name, url: c.url, on: true, w: 0 });
+  S.meta[c.aid] = { logo: c.logo || '', version: c.version || '' };
+  renderAddons(); markDirty();
+  toast('✅ ' + c.name + ' added — now press Save changes', 'ok');
+  paintAi();
+}
 
 /* ---------- start ---------- */
 if (PASS) load(); else showLogin('');

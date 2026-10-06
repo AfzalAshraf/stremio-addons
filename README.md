@@ -2,7 +2,7 @@
 
 Add as many Stremio addons as you like. Fast Combo asks them all at once and shows **only working, fast-starting 1080p and 4K streams**, with small, efficient files first so videos start quickly and don't buffer.
 
-> **No addons are included.** Fast Combo starts empty: you add the addons you want on its control panel after installing. It never searches for or recommends addons.
+> **No addons are included.** Fast Combo starts empty: you add the addons you want on its control panel after installing. It never searches for or recommends addons on its own — the one exception is the **opt-in AI finder** (the 🤖 tab), which searches Stremio's public community catalog and suggests the best scraper for what you ask for, but only adds it when you press **Add**.
 
 **Every time you open a movie or episode, it:**
 
@@ -15,6 +15,7 @@ Add as many Stremio addons as you like. Fast Combo asks them all at once and sho
 7. Sorts the list: tested-working first, then the best picture for the smallest file.
 
 **Plus:**
+- 🤖 **AI finder.** Tell it what you want (or nothing, for the best overall) and it searches Stremio's public community catalog, ranks the scrapers by installs, **live-tests the top ones** and highlights the best pick. Opt-in — it never adds anything without your **Add**. Optionally add an LLM key so it explains its choice in one line.
 - 🧩 **Control panel website** for your phone or computer. Add, remove, switch off and reorder addons. Each addon is **tested live before it's added**.
 - 🔄 **Always fresh.** Answers come instantly from memory and are re-checked in the background, so new links show up by themselves.
 - 🆕 **New-link badges** for files that appear after you first opened a title.
@@ -23,6 +24,12 @@ Add as many Stremio addons as you like. Fast Combo asks them all at once and sho
 - 🗣️ **Preferred audio languages**, and a **priority** for each addon.
 
 ---
+
+## 📦 What's new
+
+**v2.1.0**
+- 🤖 **AI addon finder** (new 🤖 tab): searches Stremio's public community catalog, ranks scrapers by installs, and — if you tick it — live-tests the top ones to verify real 1080p/4K + working links, then highlights the 🏆 best pick. Fast by default (installs-only); **optional** `FC_LLM_API_KEY` lets a small LLM make the final call with a one-line reason.
+- The control panel no longer re-checks addons you've switched off (fewer background requests).
 
 ## 🚀 Install (pick one)
 
@@ -192,6 +199,7 @@ Tip: if you also keep the original addons installed in Stremio, you'll see their
 | Tab | What you can do |
 |---|---|
 | **🧩 Addons** | Add addons (tested live first). For each one: switch on/off, **priority** (High/Normal/Low decides whose link wins when two addons have the same file), move ▲▼, rename, test again, remove. |
+| **🤖 AI best** | Find the best addon for what you're after: searches the public catalog, ranks by installs, **live-tests the top ones**, and highlights the 🏆 best pick. Add `FC_LLM_API_KEY` and a small LLM makes the final call with a one-line reason. Nothing is added until you press **Add**. |
 | **⚙️ Settings** | Sorting, qualities, size limits, how many streams, link testing, 🆕 badges, REMUX / Dolby Vision / AV1, preferred audio languages. |
 | **🔎 Try it** | Search any movie or series (or paste an ID like `tt1375666`) and see the exact list Stremio will get, plus everything removed and why. **Skip cache** asks your addons again right now. |
 | **🩺 Health** | Live status of every addon (ping, answer time, last results, errors), which file hosts work right now, recent requests. |
@@ -264,6 +272,11 @@ Everything is optional. Set these as environment variables: in `/etc/fastcombo/f
 | `FC_FRESH_SECONDS` / `FC_CACHE_MINUTES` | Background refresh after (120 s) / keep results at most (15 min) |
 | `FC_NEW_HOURS` | How long a link stays 🆕 (24) |
 | `FC_MAX_PROBES`, `FC_PROBE_CONCURRENCY`, `FC_PROBE_TIMEOUT_MS` | Link testing |
+| `FC_AI_CATALOG` | Where the 🤖 AI finder searches for scrapers (default: Stremio's public `https://api.strem.io/addons/`) |
+| `FC_AI_TEST_N` | How many top candidates the AI finder live-tests (default 3; keep it low on Cloudflare) |
+| `FC_LLM_API_KEY` | Optional: an OpenAI-compatible API key so the AI finder uses a small LLM for the final pick + a one-line reason |
+| `FC_LLM_BASE_URL` | LLM endpoint (default `https://api.openai.com/v1`; any OpenAI-compatible API works) |
+| `FC_LLM_MODEL` | LLM model (default `gpt-4o-mini`) |
 | `PORT` / `HOST` | Where `server.js` listens (default `7000` on `0.0.0.0`; the VPS installer uses `127.0.0.1` behind Caddy) |
 | `FC_DATA_FILE` / `FC_NO_STORAGE=1` | `server.js` only: where to save data / turn live sync off |
 | `FC_PRIVATE_HOST` | A private address where `/` opens the control panel **without a password**. **Never set it to a public address.** |
@@ -273,6 +286,7 @@ Everything is optional. Set these as environment variables: in `/etc/fastcombo/f
 | Problem | What to do |
 |---|---|
 | No streams at all | Have you added addons? Then open **🩺 Health**: an addon marked **Down** is offline (retried every 5 minutes). **🔎 Try it** shows what each addon returned. |
+| 🤖 AI finder says it can't reach the catalog | It needs internet to search Stremio's public catalog (`api.strem.io`). Check your connection and try again; everything else in Fast Combo works without it. |
 | First open of a title is slow (5–10 s) | Your addons are looking it up for the first time. Opening it again is instant. |
 | Saved, but Stremio shows the old list | **Live sync:** wait up to a minute and reopen the title. **Link mode:** reinstall from the 📲 Install tab. |
 | Catalogs of a newly added addon don't appear | Stremio reads catalogs only when installing. Reinstall Fast Combo once. (Streams from new addons work without reinstalling.) |

@@ -41,6 +41,7 @@ function fileKV(file) {
       if (e.x && e.x < Date.now()) { delete data[k]; later(); return null; }
       return e.v;
     },
+    async getWithMetadata(k) { const v = await this.get(k); return v == null ? null : { value: v, metadata: {} }; },
     async put(k, v, o = {}) { data[k] = { v: String(v), x: o.expirationTtl ? Date.now() + o.expirationTtl * 1000 : 0 }; later(); },
     async delete(k) { delete data[k]; later(); },
   };
