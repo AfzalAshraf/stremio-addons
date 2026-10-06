@@ -25,6 +25,12 @@ Add as many Stremio addons as you like. Fast Combo asks them all at once and sho
 
 ---
 
+## 📦 What's new
+
+**v2.1.0**
+- 🤖 **AI addon finder** (new 🤖 tab): searches Stremio's public community catalog, ranks scrapers by installs, and — if you tick it — live-tests the top ones to verify real 1080p/4K + working links, then highlights the 🏆 best pick. Fast by default (installs-only); **optional** `FC_LLM_API_KEY` lets a small LLM make the final call with a one-line reason.
+- The control panel no longer re-checks addons you've switched off (fewer background requests).
+
 ## 🚀 Install (pick one)
 
 | Where | Cost | How long | Best for |

@@ -75,7 +75,7 @@ const CONFIG = {
 //                     ENGINE — no need to edit below this line
 // ============================================================================
 
-const VERSION = "2.0.0";
+const VERSION = "2.1.0";
 const UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36";
 const RT = { ...CONFIG, DEFAULTS: { ...CONFIG.DEFAULTS } };
@@ -1999,12 +1999,12 @@ details summary{cursor:pointer;color:#b9c3e6;font-size:13.5px;margin-top:12px;fo
     <section data-pane="ai" class="hidden">
       <div class="card">
         <h2>🤖 AI: find the best addon</h2>
-        <p class="lead">Searches Stremio's public community catalog for scrapers, ranks them by installs, then <b>live-tests the top ones</b> (real 1080p / 4K + links that actually start) so you end up with the best one. <b>Nothing is added until you press Add.</b></p>
+        <p class="lead">Searches Stremio's public community catalog for scrapers and ranks them by installs — answers in about a second. Tick <b>live-test</b> to also verify the top ones have real 1080p / 4K + working links (more accurate, ~10–25 s). <b>Nothing is added until you press Add.</b></p>
         <form id="aiForm" class="row" style="align-items:flex-end">
           <div style="flex:1;min-width:0"><label class="lbl">What do you want?</label><input id="aiQ" class="field" placeholder="e.g. 4k, anime, torbox, subtitles — or leave empty for the best overall" autocomplete="off" autocapitalize="off" spellcheck="false"></div>
           <button class="btn pri" id="aiBtn" type="submit">🔎 Find the best</button>
         </form>
-        <label class="row small mut" style="gap:6px;margin-top:12px"><input type="checkbox" id="aiTest" checked> Live-test the top candidates (more accurate, ~10–25 s)</label>
+        <label class="row small mut" style="gap:6px;margin-top:12px"><input type="checkbox" id="aiTest"> Live-test the top candidates for accuracy (off by default — adds ~10–25 s)</label>
         <div id="aiOut"></div>
       </div>
     </section>
