@@ -3,3 +3,9 @@
 # FC_ADMIN_PASSWORD = password for the control panel website
 FC_ACCESS_KEY=
 FC_ADMIN_PASSWORD=
+
+# ---- Optional: let the 🤖 AI finder use a small LLM for the final pick (any OpenAI-compatible API) ----
+# Without these it still works: it auto-scores the catalog by installs + a live test.
+# FC_LLM_API_KEY=sk-...
+# FC_LLM_BASE_URL=https://api.openai.com/v1
+# FC_LLM_MODEL=gpt-4o-mini

@@ -67,6 +67,7 @@ const CONFIG = {
   NEW_HOURS: 24,                  // a link counts as 🆕 for this long after it first appeared
   MAX_ADDONS: 15,                 // max addons in the list (Cloudflare free plan; Node/VPS default: 50 via FC_MAX_ADDONS)
   MAX_STREAMS_PER_ADDON: 250,     // read at most this many streams from one addon
+  AI_TEST_N: 3,                   // "AI finder": how many top candidates get a live test (kept low for Cloudflare's limits)
   // Encrypts your addon list inside links. "" = FC_SECRET / automatic (Node) / derived from the password.
   SECRET: "",
 };
@@ -88,7 +89,7 @@ function applyEnv(env) {
   if (envApplied) return;
   envApplied = true;
   if (!env || typeof env !== "object") return;
-  for (const k of ["UPSTREAM_TIMEOUT_MS", "PROBE_TIMEOUT_MS", "PROBE_BUDGET_MS", "MAX_PROBES", "PROBE_CONCURRENCY", "CACHE_MINUTES", "FRESH_SECONDS", "NEW_HOURS", "MAX_ADDONS", "MAX_STREAMS_PER_ADDON"]) {
+  for (const k of ["UPSTREAM_TIMEOUT_MS", "PROBE_TIMEOUT_MS", "PROBE_BUDGET_MS", "MAX_PROBES", "PROBE_CONCURRENCY", "CACHE_MINUTES", "FRESH_SECONDS", "NEW_HOURS", "MAX_ADDONS", "MAX_STREAMS_PER_ADDON", "AI_TEST_N"]) {
     const v = env["FC_" + k];
     if (v !== undefined && v !== "" && !isNaN(+v)) RT[k] = +v;
   }
@@ -96,6 +97,11 @@ function applyEnv(env) {
   if (env.FC_ADDON_NAME) RT.ADDON_NAME = String(env.FC_ADDON_NAME);
   if (env.FC_ADMIN_PASSWORD) RT.ADMIN_PASSWORD = String(env.FC_ADMIN_PASSWORD);
   if (env.FC_SECRET) RT.SECRET = String(env.FC_SECRET);
+  // "AI finder" (opt-in): where to search for scrapers, and the optional LLM that makes the final pick.
+  if (env.FC_AI_CATALOG) RT.AI_CATALOG = String(env.FC_AI_CATALOG);
+  if (env.FC_LLM_API_KEY) RT.LLM_API_KEY = String(env.FC_LLM_API_KEY);
+  if (env.FC_LLM_BASE_URL) RT.LLM_BASE_URL = String(env.FC_LLM_BASE_URL).replace(/\/+$/, "");
+  if (env.FC_LLM_MODEL) RT.LLM_MODEL = String(env.FC_LLM_MODEL);
   // Address people/Stremio use to reach the addon (only needed behind a proxy/tunnel)
   if (env.FC_PUBLIC_URL) RT.PUBLIC_URL = String(env.FC_PUBLIC_URL).replace(/\/+$/, "");
   // Private address (or its ending) where "/" may open the settings page directly. Never your public address!
@@ -156,7 +162,7 @@ class TTL {
 const C = {
   streams: new TTL(400), up: new TTL(400), probe: new TTL(5000), manifest: new TTL(50),
   meta: new TTL(2000), catalog: new TTL(300), subs: new TTL(300), inflight: new Map(),
-  profile: new TTL(60), tokens: new TTL(300), seen: new TTL(1500),
+  profile: new TTL(60), tokens: new TTL(300), seen: new TTL(1500), ai: new TTL(30),
 };
 const recent = []; // last requests (for the status page)
 
@@ -1438,7 +1444,9 @@ async function readBody(request) {
 }
 
 async function profileView(env, P) {
-  const ms = await Promise.all(P.addons.map((a) => withTimeout(getManifest(a), 5000, null)));
+  // Only fetch a manifest for addons that are switched on; for the off ones use whatever is
+  // already cached (no network), so the panel doesn't ping addons you've disabled.
+  const ms = await Promise.all(P.addons.map((a) => (a.on ? withTimeout(getManifest(a), 5000, null) : Promise.resolve(C.manifest.get(a.url)))));
   return {
     ok: true, version: VERSION, storage: !!(env && env.FC_KV), from: P.from, badToken: !!P.badToken,
     addons: P.addons.map((a, i) => ({ ...a, logo: (ms[i] && typeof ms[i].logo === "string" && ms[i].logo) || "", version: (ms[i] && String(ms[i].version || "")) || "" })),
@@ -1583,6 +1591,165 @@ async function titleInfo(id) {
   return out;
 }
 
+// --------------------------------------------- 🤖 AI addon finder (opt-in)
+// Searches Stremio's public community catalog, ranks candidates by installs, live-tests the top
+// ones (real 1080p / 4K + working links) and, if FC_LLM_API_KEY is set, lets a small LLM make the
+// final pick with a one-line reason. Nothing is added automatically: the panel shows a ranked
+// shortlist and you press "Add". Off by default until you open the tab and press the button.
+const AI_CATALOG_DEFAULT = "https://api.strem.io/addons/";
+const aiCatalogUrl = () => RT.AI_CATALOG || AI_CATALOG_DEFAULT;
+
+async function fetchAiCatalog() {
+  const hit = C.ai.get("cat");
+  if (hit) return hit;
+  let data;
+  try { ({ data } = await fetchJSON(aiCatalogUrl(), 12000)); }
+  catch { throw new Error("couldn't reach the community catalog (" + aiCatalogUrl() + ") — check your internet connection and try again in a moment"); }
+  const list = Array.isArray(data) ? data : data && Array.isArray(data.addons) ? data.addons : null;
+  if (!list) throw new Error("the community catalog (" + aiCatalogUrl() + ") didn't answer with a list");
+  C.ai.set("cat", list, 5 * 60e3);
+  return list;
+}
+const aiRatingOf = (r) => (typeof r === "number" ? r : r && typeof r === "object" ? Number(r.average ?? r.score ?? r.rating) || 0 : 0);
+const aiDownloadsOf = (d) => { const n = Number(d); return isFinite(n) ? Math.max(0, n) : 0; };
+
+/** Deterministic "small AI" score from the catalog's public stats plus the search query. */
+function aiScoreCatalog(item, q) {
+  let s = 0;
+  const why = [];
+  const dl = aiDownloadsOf(item.downloads);
+  if (dl) { s += Math.min(45, Math.round(Math.sqrt(dl) / 4)); why.push((dl >= 1000 ? Math.round(dl / 1000) + "k" : dl) + " installs"); }
+  const rt = aiRatingOf(item.rating);
+  if (rt) { s += Math.min(20, Math.round(rt * 4)); why.push(rt.toFixed(1) + "★"); }
+  const text = (String(item.name || "") + " " + String(item.description || "") + " " + String(item.id || "")).toLowerCase();
+  const res = Array.isArray(item.resources) ? item.resources : [];
+  if (res.some((r) => (typeof r === "string" ? r : r && r.name) === "stream")) s += 8; // it actually provides streams
+  if (q) {
+    const words = q.split(/[\s,]+/).filter(Boolean);
+    const hit = words.filter((w) => text.includes(w.toLowerCase()));
+    if (hit.length) { s += 25 + hit.length * 10; why.push("matches " + hit.join(", ")); }
+    else s -= 40; // asked for something it doesn't mention
+  }
+  return { s, why, match: q ? !!why.some((w) => w.startsWith("matches")) : true };
+}
+
+/** Re-score once we have a live test (from inspectAddon): 4K/1080p found + links that start. */
+function aiScoreLive(base, live) {
+  let s = base.s;
+  const why = [...base.why];
+  const uhd = live.uhd || 0, hd = live.hd || 0;
+  if (uhd) { s += 14; why.push(uhd + " in 4K"); }
+  if (hd) { s += 8; why.push(hd + " in 1080p"); }
+  if (!uhd && !hd) s -= 15;
+  if (live.linksTested) { s += Math.round((live.linksOk / live.linksTested) * 15); why.push(live.linksOk + "/" + live.linksTested + " links start"); }
+  if (live.direct && !live.p2p) s += 4;
+  if (live.ms > 9000) s -= 6;
+  return { s, why };
+}
+
+/** Optional: let a small LLM (any OpenAI-compatible endpoint) make the final pick. */
+async function aiAskLlm(cands) {
+  if (!RT.LLM_API_KEY) return null;
+  const base = RT.LLM_BASE_URL || "https://api.openai.com/v1";
+  const model = RT.LLM_MODEL || "gpt-4o-mini";
+  const rows = cands.map((c) =>
+    c._i + ". " + c.name + " — installs:" + (c.downloads || 0) + " rating:" + (c.rating || 0) +
+    (c.live && !c.live.error ? " 4k:" + (c.live.uhd || 0) + " 1080p:" + (c.live.hd || 0) + " links " + (c.live.linksOk || 0) + "/" + (c.live.linksTested || 0)
+      : c.live && c.live.error ? " test-failed" : " not-tested") +
+    (c.description ? " — " + String(c.description).slice(0, 120) : "")
+  ).join("\n");
+  const prompt =
+    "You are choosing which Stremio scraper addons to recommend, to give working 1080p/4K streams. " +
+    "The list below is sorted by popularity only. Return ONLY a JSON object, no other text: " +
+    "{\"add\":[indices of the best ones, at most 3, best first],\"order\":[all indices best-first],\"reason\":{\"<index>\":\"one short reason\"}}\n\n" + rows;
+  try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 20000);
+    const r = await fetch(base + "/chat/completions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: "Bearer " + RT.LLM_API_KEY },
+      body: JSON.stringify({ model, temperature: 0, max_tokens: 500, messages: [{ role: "user", content: prompt }] }),
+      signal: ctrl.signal,
+    });
+    clearTimeout(timer);
+    if (!r.ok) return null;
+    const j = await r.json();
+    let txt = String((j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content) || "").trim();
+    txt = txt.replace(/^```(?:json)?/i, "").replace(/```/g, "").trim();
+    const m = txt.indexOf("{"), e = txt.lastIndexOf("}");
+    if (m < 0 || e < m) return null;
+    const o = JSON.parse(txt.slice(m, e + 1));
+    const idx = (a) => (Array.isArray(a) ? a.filter((x) => Number.isInteger(x) && x >= 0 && x < cands.length) : []);
+    const reason = {};
+    for (const c of cands) {
+      const v = o.reason && o.reason[c._i];
+      if (typeof v === "string" && v.trim()) reason[c._i] = v.trim().slice(0, 160);
+    }
+    return { model, add: idx(o.add).slice(0, 3), order: idx(o.order), reason };
+  } catch { return null; }
+}
+
+async function aiFind(P, q, doTest) {
+  q = String(q || "").trim().slice(0, 80);
+  const list = await fetchAiCatalog();
+  const haveUrl = new Set(P.addons.map((a) => a.url));
+  const haveId = new Set(P.addons.map((a) => a.id));
+  const cands = [];
+  for (const item of list) {
+    if (!item || typeof item !== "object") continue;
+    if (String(item.id || "").startsWith("community.fastcombo.")) continue; // skip Fast Combo itself
+    const link = cleanAddonUrl(item.link);
+    if (!link || haveUrl.has(link) || haveId.has(addonId(link))) continue;
+    const sc = aiScoreCatalog(item, q);
+    if (!sc.match) continue; // the query didn't match anything about it
+    cands.push({
+      url: link, aid: addonId(link),
+      name: String(item.name || "Addon").replace(/\s+/g, " ").trim().slice(0, 40) || "Addon",
+      downloads: aiDownloadsOf(item.downloads), rating: aiRatingOf(item.rating) || null,
+      logo: typeof item.logo === "string" ? item.logo : "",
+      description: String(item.description || "").slice(0, 200),
+      version: String(item.version || ""),
+      score: sc.s, why: sc.why,
+    });
+  }
+  cands.sort((a, b) => b.score - a.score);
+  const total = cands.length;
+  let top = cands.slice(0, 12);
+  top.forEach((c, i) => (c._i = i));
+  if (doTest && top.length) {
+    const N = Math.max(1, Math.min(Math.round(RT.AI_TEST_N || 3), top.length));
+    await Promise.all(top.slice(0, N).map(async (c) => {
+      const r = await inspectAddon(c.url, P).catch(() => null);
+      if (r && r.ok && r.sample && !r.sample.error) { c.live = r.sample; const l = aiScoreLive({ s: c.score, why: c.why }, r.sample); c.score = l.s; c.why = l.why; }
+      else c.live = { error: (r && r.error) || "couldn't test it right now" };
+    }));
+    top.sort((a, b) => b.score - a.score);
+    top.forEach((c, i) => (c._i = i)); // renumber: _i is the order actually shown
+  }
+  let engine = "auto", llm = null;
+  if (RT.LLM_API_KEY) {
+    llm = await aiAskLlm(top.slice(0, 8));
+    if (llm && llm.order && llm.order.length) {
+      const byIdx = new Map(top.map((c) => [c._i, c]));
+      const rank = llm.order.map((i) => byIdx.get(i)).filter(Boolean);
+      top = rank.concat(top.filter((c) => !rank.includes(c)));
+      for (const c of top) if (llm.reason[c._i]) c.reason = llm.reason[c._i];
+      engine = "llm";
+    } else engine = "auto"; // LLM didn't return usable data → keep the auto score
+  }
+  top = top.slice(0, 12);
+  const candidates = top.map((c) => ({
+    url: c.url, aid: c.aid, name: c.name, downloads: c.downloads, rating: c.rating,
+    logo: c.logo, description: c.description, version: c.version, score: c.score, why: c.why,
+    reason: c.reason || "", tested: !!c.live,
+    live: c.live ? { hd: c.live.hd || 0, uhd: c.live.uhd || 0, p2p: c.live.p2p || 0, direct: c.live.direct || 0, linksOk: c.live.linksOk || 0, linksTested: c.live.linksTested || 0, linksMs: c.live.linksMs || 0, ms: c.live.ms || 0, error: c.live.error || "" } : null,
+  }));
+  const suggested = llm && llm.add && llm.add.length
+    ? llm.add.map((i) => top.find((c) => c._i === i)).filter(Boolean).slice(0, 3).map((c) => c.url)
+    : candidates.length ? [candidates[0].url] : [];
+  return { ok: true, source: aiCatalogUrl(), engine, llm: llm ? { model: llm.model } : null, count: total, tested: !!doTest, best: candidates[0] || null, suggested, candidates };
+}
+
 async function apiHandler(request, env, ctx, P, parts) {
   if (!(await isAdmin(request))) return apiJson({ ok: false, error: "login" }, 401);
   const url = new URL(request.url);
@@ -1606,6 +1773,11 @@ async function apiHandler(request, env, ctx, P, parts) {
       if (!type || !id) return apiJson({ ok: false, error: "missing id" }, 400);
       const r = await streamHandler(type, id, P, request.headers.get("user-agent") || "", ctx, env, { fresh: url.searchParams.get("fresh") === "1" });
       return apiJson({ ok: true, streams: r.out.streams, report: r.report || null, cached: !!r.cached, age: Math.round((Date.now() - r.at) / 1000) });
+    }
+    if (name === "ai") {
+      const q = String(url.searchParams.get("q") || "");
+      const doTest = url.searchParams.get("test") === "1";
+      return apiJson(await aiFind(P, q, doTest));
     }
     return apiJson({ ok: false, error: "not found" }, 404);
   } catch (e) {
@@ -1800,6 +1972,7 @@ details summary{cursor:pointer;color:#b9c3e6;font-size:13.5px;margin-top:12px;fo
   <main id="app" class="hidden">
     <nav class="tabs" id="tabs">
       <button type="button" data-tab="addons"><span class="ti">🧩</span>Addons</button>
+      <button type="button" data-tab="ai"><span class="ti">🤖</span>AI best</button>
       <button type="button" data-tab="settings"><span class="ti">⚙️</span>Settings</button>
       <button type="button" data-tab="try"><span class="ti">🔎</span>Try it</button>
       <button type="button" data-tab="health"><span class="ti">🩺</span>Health</button>
@@ -1820,6 +1993,19 @@ details summary{cursor:pointer;color:#b9c3e6;font-size:13.5px;margin-top:12px;fo
         <div class="card-h"><h2>Your addons</h2><span class="mut small" id="addonCount"></span></div>
         <p class="lead">All switched-on addons are asked at the same time. Dead or slow ones are skipped automatically and retried later. <b>Priority</b> decides which addon's link wins when two have the same file.</p>
         <div id="addonList"></div>
+      </div>
+    </section>
+
+    <section data-pane="ai" class="hidden">
+      <div class="card">
+        <h2>🤖 AI: find the best addon</h2>
+        <p class="lead">Searches Stremio's public community catalog for scrapers, ranks them by installs, then <b>live-tests the top ones</b> (real 1080p / 4K + links that actually start) so you end up with the best one. <b>Nothing is added until you press Add.</b></p>
+        <form id="aiForm" class="row" style="align-items:flex-end">
+          <div style="flex:1;min-width:0"><label class="lbl">What do you want?</label><input id="aiQ" class="field" placeholder="e.g. 4k, anime, torbox, subtitles — or leave empty for the best overall" autocomplete="off" autocapitalize="off" spellcheck="false"></div>
+          <button class="btn pri" id="aiBtn" type="submit">🔎 Find the best</button>
+        </form>
+        <label class="row small mut" style="gap:6px;margin-top:12px"><input type="checkbox" id="aiTest" checked> Live-test the top candidates (more accurate, ~10–25 s)</label>
+        <div id="aiOut"></div>
       </div>
     </section>
 
@@ -2300,6 +2486,68 @@ function renderInstall() {
       : '<p class="hint">Tip: with server.js, live sync is on automatically (saved in data/kv.json).</p>');
 }
 $('#instCopy').addEventListener('click', function () { copy(installUrl(), 'Install link copied'); });
+
+/* ---------- AI finder ---------- */
+var aiItems = [], aiResult = null;
+$('#aiForm').addEventListener('submit', function (e) { e.preventDefault(); aiFind(); });
+function aiFind() {
+  var q = $('#aiQ').value.trim(), test = $('#aiTest').checked, out = $('#aiOut'), btn = $('#aiBtn');
+  btn.disabled = true; btn.innerHTML = '<span class="spin"></span>';
+  out.innerHTML = '<div class="loading"><div class="spin"></div><div>' + (test ? 'Searching the community catalog and live-testing the top ones… usually 10–25 s' : 'Searching the community catalog… a couple of seconds') + '</div></div>';
+  api('ai?q=' + encodeURIComponent(q) + (test ? '&test=1' : '')).then(function (r) { aiResult = r; aiItems = (r && r.candidates) || []; paintAi(); })
+    .catch(function (e) { if (!e.login) out.innerHTML = '<div class="err">❌ ' + esc(e.message) + '</div>'; })
+    .then(function () { btn.disabled = false; btn.textContent = '🔎 Find the best'; });
+}
+function aiBits(c) {
+  var b = [];
+  if (c.downloads) b.push('📥 ' + (c.downloads >= 1000 ? Math.round(c.downloads / 1000) + 'k' : c.downloads) + ' installs');
+  if (c.rating) b.push('⭐ ' + c.rating.toFixed(1));
+  if (c.tested && c.live) {
+    if (c.live.uhd) b.push('✨ ' + c.live.uhd + ' in 4K');
+    if (c.live.hd) b.push('🎞 ' + c.live.hd + ' in 1080p');
+    if (c.live.linksTested) b.push('🔗 ' + c.live.linksOk + '/' + c.live.linksTested + ' start');
+  }
+  return b;
+}
+function aiRow(c, i) {
+  var best = i === 0, bits = aiBits(c), already = S.prof.addons.some(function (a) { return a.id === c.aid; });
+  var why = (c.why || []).slice(0, 4).map(esc).join(' · ');
+  return '<div class="addon" style="' + (best ? 'border-color:rgba(124,108,255,.75);box-shadow:0 0 0 2px rgba(124,108,255,.35)' : '') + '">' +
+    (best ? '<div style="flex-basis:100%"><span class="pill b"><span class="dot"></span>🏆 Best pick</span>' + (c.reason ? '<span class="mut small" style="margin-left:8px">' + esc(c.reason) + '</span>' : '') + '</div>' : '') +
+    '<img class="alogo" alt="" src="' + esc(c.logo || '/logo.png') + '" onerror="this.onerror=null;this.src=\'/logo.png\'">' +
+    '<div class="ainfo"><div class="aname"><span>' + (i + 1) + '. ' + esc(c.name) + '</span></div>' +
+    (bits.length ? '<div class="astats">' + bits.map(function (x) { return '<span>' + esc(x) + '</span>'; }).join('') + '</div>' : '') +
+    (why ? '<div class="aurl" style="white-space:normal;max-width:none;overflow:visible">' + why + '</div>' : '') +
+    (c.live && c.live.error ? '<div class="aerr">⚠ ' + esc(c.live.error) + '</div>' : '') + '</div>' +
+    '<div class="actl">' + (already ? '<span class="pill n">✓ Added</span>' : '<button type="button" class="btn ok sm" data-ai="' + i + '">＋ Add</button>') + '</div></div>';
+}
+function paintAi() {
+  var out = $('#aiOut'), r = aiResult;
+  if (!r) return;
+  if (!r.ok) { out.innerHTML = '<div class="err">❌ ' + esc(r.error || 'Something went wrong') + '</div>'; return; }
+  if (!aiItems.length) { out.innerHTML = '<div class="empty">No addons matched. Try a different word, or leave the box empty for the best overall.</div>'; return; }
+  var eng = r.llm ? '<span class="pill b">🧠 ' + esc(r.llm.model) + '</span>' : '<span class="pill n">⚙️ auto-scored</span>';
+  var h = '<div class="sum" style="margin:8px 0 2px">' + eng + '<span class="mut small">from ' + esc(r.source) + (r.tested ? ' · top ones live-tested' : '') + ' · ' + r.count + ' candidates</span></div>';
+  h += '<div class="btns" style="margin:12px 0 2px"><button type="button" class="btn pri" id="aiBest">＋ Add the best' + (aiItems[0] ? ': ' + esc(aiItems[0].name) : '') + '</button>';
+  var sug = r.suggested || [];
+  if (sug.length > 1) h += '<button type="button" class="btn" id="aiTop">＋ Add top ' + sug.length + '</button>';
+  h += '</div>';
+  h += aiItems.map(aiRow).join('');
+  out.innerHTML = h;
+  var b = $('#aiBest'); if (b) b.addEventListener('click', function () { aiAdd(0); });
+  var t = $('#aiTop'); if (t) t.addEventListener('click', function () { (r.suggested || []).forEach(function (u) { for (var k = 0; k < aiItems.length; k++) if (aiItems[k].url === u) { aiAdd(k); break; } }); });
+  $$('#aiOut [data-ai]').forEach(function (el) { el.addEventListener('click', function () { aiAdd(+el.getAttribute('data-ai')); }); });
+}
+function aiAdd(i) {
+  var c = aiItems[i]; if (!c) return;
+  if (S.prof.addons.some(function (a) { return a.id === c.aid; })) { toast('Already in your list'); return; }
+  if (S.prof.addons.length >= B.maxAddons) { toast('Your addon list is full (' + B.maxAddons + ')', 'bad'); return; }
+  S.prof.addons.push({ id: c.aid, name: c.name, url: c.url, on: true, w: 0 });
+  S.meta[c.aid] = { logo: c.logo || '', version: c.version || '' };
+  renderAddons(); markDirty();
+  toast('✅ ' + c.name + ' added — now press Save changes', 'ok');
+  paintAi();
+}
 
 /* ---------- start ---------- */
 if (PASS) load(); else showLogin('');

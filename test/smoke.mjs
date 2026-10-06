@@ -45,7 +45,16 @@ const server = http.createServer((req, res) => {
   if ((m = /^\/([abc])\/manifest\.json$/.exec(u.pathname))) {
     return send(200, { id: `test.fake.${m[1]}`, version: "1.0.0", name: `Fake ${m[1].toUpperCase()}`, resources: ["stream"], types: ["movie", "series"], idPrefixes: ["tt"], catalogs: [] });
   }
-  if ((m = /^\/([abc])\/stream\/movie\/(tt\d+)\.json$/.exec(u.pathname))) return send(200, { streams: m[2] === ID ? BY_ADDON[m[1]].map(toStream) : [] });
+  if (u.pathname === "/addons.json") {
+    // a tiny stand-in for Stremio's public community catalog (api.strem.io/addons/)
+    return send(200, [
+      { name: "Fake A", id: "fa", link: `${base}/a/manifest.json`, downloads: 500000, rating: { average: 4.5, count: 100 }, resources: ["stream"], types: ["movie", "series"], description: "a streams" },
+      { name: "Fake B", id: "fb", link: `${base}/b/manifest.json`, downloads: 900000, rating: { average: 4.2, count: 50 }, resources: ["stream"], types: ["movie", "series"], description: "b streams" },
+      { name: "Fake C", id: "fc", link: `${base}/c/manifest.json`, downloads: 100, rating: { average: 2.0, count: 5 }, resources: ["stream"], types: ["movie", "series"], description: "c streams" },
+      { name: "Fast Combo self", id: "community.fastcombo.self", link: `${base}/a/manifest.json`, downloads: 9999999 },
+    ]);
+  }
+  if ((m = /^\/([abc])\/stream\/movie\/(tt\d+)\.json$/.exec(u.pathname))) return send(200, { streams: BY_ADDON[m[1]].map(toStream) });
   if ((m = /^\/v\/([\w-]+)\.mkv$/.exec(u.pathname)) && FILES[m[1]]) {
     const f = FILES[m[1]];
     if (f.dead) return send(404, "gone", "text/plain");
@@ -162,6 +171,28 @@ check("setting \"1080p only\" removes the 4K file", only1080.length > 0 && !only
     r = await call(app4, env4, `/${KEY}/stream/movie/${ID}.json`);
     check(`storage named "${name}" also gives live sync`, live && r.status === 200 && keysOf(r.data.streams).includes("b-2160"));
   }
+}
+
+// ------------------------------------------------------------ 9. AI finder: search the catalog, rank, live-test, pick
+{
+  const appAi = await load();
+  const envAi = { FC_ACCESS_KEY: KEY, FC_ADMIN_PASSWORD: PW, FC_SECRET: "s".repeat(32), FC_KV: memKV(), FC_AI_CATALOG: `${base}/addons.json` };
+  r = await call(appAi, envAi, `/${KEY}/api/profile`, { method: "POST", pw: PW, body: { addons: [{ name: "Fake A", url: `${base}/a/manifest.json` }], settings: {} } });
+  r = await call(appAi, envAi, `/${KEY}/api/ai`, { pw: PW });
+  const cands = (r.data && r.data.candidates) || [];
+  check("AI finder: reads the community catalog", r.data && r.data.ok && r.data.source === `${base}/addons.json` && r.data.engine === "auto");
+  check("AI finder: skips itself + already-added", cands.length === 2 && cands.every((c) => c.url !== `${base}/a/manifest.json` && !/community\.fastcombo/.test(c.url)), cands.map((c) => c.name).join(", "));
+  check("AI finder: ranks the rest by installs", cands[0] && cands[0].url === `${base}/b/manifest.json`, (cands.map((c) => c.name + ":" + c.score) || []).join(", "));
+  check("AI finder: returns best + suggested", r.data && r.data.ok && !!r.data.best && r.data.best.url === `${base}/b/manifest.json` && r.data.suggested.length >= 1);
+  r = await call(appAi, envAi, `/${KEY}/api/ai?q=fake`, { pw: PW });
+  check("AI finder: query filters by name", r.data && r.data.ok && r.data.candidates.length === 2 && r.data.candidates.every((c) => /fake/i.test(c.name)));
+  r = await call(appAi, envAi, `/${KEY}/api/ai?q=zzznotthere`, { pw: PW });
+  check("AI finder: no match → empty", r.data && r.data.ok && r.data.candidates.length === 0);
+  r = await call(appAi, envAi, `/${KEY}/api/ai?test=1`, { pw: PW });
+  const b = ((r.data && r.data.candidates) || []).find((c) => c.url === `${base}/b/manifest.json`);
+  check("AI finder: live test finds 4K + 1080p", b && b.tested && b.live.uhd >= 1 && b.live.hd >= 1, b ? `4K=${b.live.uhd} 1080p=${b.live.hd} links=${b.live.linksOk}/${b.live.linksTested}` : "no B candidate");
+  check("AI finder: live test confirms links start", b && b.live.linksTested >= 1 && b.live.linksOk >= 1);
+  check("AI finder: tested best is ranked first", r.data && r.data.best && r.data.best.url === `${base}/b/manifest.json`);
 }
 
 await Promise.allSettled(pending);
